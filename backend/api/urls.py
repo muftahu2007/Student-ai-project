@@ -1,0 +1,32 @@
+from django.urls import path
+from .views import RegisterView, DocumentListView, DocumentDetailView, SummarizeDocumentView, QuestionAnswerView, StudyGuideView, QuizView, MultiDocumentQuizView, ResetPasswordView, UserProfileView, GradeTheoryQuizView, SaveQuizResultView, QuizHistoryListView, ExtractAdmissionLetterView, StudentProfileView, InteractionHistoryListView, InteractionHistoryDetailView, ExplainSimplerView, GenerateFlashcardsView, StudyScheduleListView, GeneratePDFView, GenerateMindMapView, QuizPerformanceAnalysisView, AnalyticsView
+from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
+
+urlpatterns = [
+    path('auth/register/', RegisterView.as_view(), name='auth_register'),
+    path('auth/login/', TokenObtainPairView.as_view(), name='auth_login'),
+    path('auth/refresh/', TokenRefreshView.as_view(), name='auth_refresh'),
+    path('auth/me/', UserProfileView.as_view(), name='auth_me'),
+    path('auth/profile/', StudentProfileView.as_view(), name='auth_profile'),
+    path('auth/extract-admission/', ExtractAdmissionLetterView.as_view(), name='extract_admission'),
+    path('auth/reset-password/', ResetPasswordView.as_view(), name='auth_reset_password'),
+    path('documents/', DocumentListView.as_view(), name='documents_list'),
+    path('documents/<int:pk>/', DocumentDetailView.as_view(), name='document_detail'),
+    path('documents/<int:doc_id>/summarize/', SummarizeDocumentView.as_view(), name='document_summarize'),
+    path('documents/<int:doc_id>/ask/', QuestionAnswerView.as_view(), name='document_ask'),
+    path('documents/<int:doc_id>/study-guide/', StudyGuideView.as_view(), name='document_study_guide'),
+    path('documents/<int:doc_id>/quiz/', QuizView.as_view(), name='document_quiz'),
+    path('documents/<int:doc_id>/flashcards/', GenerateFlashcardsView.as_view(), name='document_flashcards'),
+    path('documents/<int:doc_id>/grade-theory/', GradeTheoryQuizView.as_view(), name='document_grade_theory'),
+    path('quiz-history/', QuizHistoryListView.as_view(), name='quiz_history_list'),
+    path('interaction-history/', InteractionHistoryListView.as_view(), name='interaction_history_list'),
+    path('interaction-history/<int:pk>/', InteractionHistoryDetailView.as_view(), name='interaction_history_detail'),
+    path('save-quiz-result/', SaveQuizResultView.as_view(), name='save_quiz_result'),
+    path('explain-simpler/', ExplainSimplerView.as_view(), name='explain_simpler'),
+    path('schedules/', StudyScheduleListView.as_view(), name='schedules_list'),
+    path('generate-pdf/', GeneratePDFView.as_view(), name='generate_pdf'),
+    path('documents/<int:doc_id>/mindmap/', GenerateMindMapView.as_view(), name='document_mindmap'),
+    path('quiz/multi/', MultiDocumentQuizView.as_view(), name='multi_document_quiz'),
+    path('quiz/analyze-performance/', QuizPerformanceAnalysisView.as_view(), name='quiz_analyze_performance'),
+    path('analytics/', AnalyticsView.as_view(), name='analytics'),
+]
