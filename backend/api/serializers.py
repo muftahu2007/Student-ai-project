@@ -15,8 +15,8 @@ class UserSerializer(serializers.ModelSerializer):
 class DocumentSerializer(serializers.ModelSerializer):
     class Meta:
         model = Document
-        fields = ('id', 'title', 'file', 'uploaded_at', 'pages')
-        read_only_fields = ('id', 'uploaded_at', 'pages')
+        fields = ('id', 'title', 'file', 'uploaded_at', 'pages', 'extracted_text')
+        read_only_fields = ('id', 'uploaded_at', 'pages', 'extracted_text')
 
 class StudentProfileSerializer(serializers.ModelSerializer):
     class Meta:

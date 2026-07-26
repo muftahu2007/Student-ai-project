@@ -1,4 +1,4 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
 import { useState } from "react";
 import { toast } from "sonner";
 import { Mail, Lock, ArrowRight, Eye, EyeOff } from "lucide-react";
@@ -22,7 +22,7 @@ function ForgotPasswordPage() {
   const [newPassword, setNewPassword] = useState("");
   const [show, setShow] = useState(false);
   const [loading, setLoading] = useState(false);
-  const navigate = useNavigate();
+  const router = useRouter();
 
   const handleReset = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -34,8 +34,10 @@ function ForgotPasswordPage() {
     setLoading(true);
     try {
       await resetPassword({ email, new_password: newPassword });
-      toast.success("Password reset successfully! You can now log in.");
-      navigate({ to: "/login" });
+      toast.success("Password reset successfully! Redirecting to sign in...");
+      setTimeout(() => {
+        router.navigate({ to: "/login" });
+      }, 500);
     } catch (err: any) {
       toast.error(err.message || "Failed to reset password.");
     } finally {

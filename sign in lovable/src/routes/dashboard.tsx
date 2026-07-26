@@ -6,12 +6,13 @@ import {
   Settings, LogOut, Search, Bell, Menu, X, Upload, Plus, ArrowUpRight,
   TrendingUp, Clock, Brain, ChevronRight, GraduationCap, FlaskConical,
   Calculator, Globe, Zap, Inbox, Loader2, Target, TrendingDown, CheckCircle2, XCircle,
-  Lightbulb, Volume2, VolumeX, Download, FlipHorizontal, Calendar, Trash2, Layers, CheckSquare, Square, Play
+  Lightbulb, Volume2, VolumeX, Download, FlipHorizontal, Calendar, Trash2, Layers, CheckSquare, Square, Play,
+  Copy, Check, Highlighter, Type, Eye
 } from "lucide-react";
 import logo from "@/assets/buk-scholar-logo.png";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { getDocuments, getUserProfile, uploadDocument, summarizeDocument, askQuestion, generateStudyGuide, generateQuiz, saveQuizResult, getQuizHistory, gradeTheoryQuiz, getInteractionHistory, deleteInteraction, streamSummarize, streamStudyGuide, streamAskQuestion, explainSimpler, generateFlashcards, getSchedules, createSchedule, downloadPdf, generateMindMap, generateMultiQuiz, analyzeQuizPerformance, deleteDocument, getAnalytics } from "@/lib/api";
+import { getDocuments, getUserProfile, uploadDocument, summarizeDocument, askQuestion, generateStudyGuide, generateQuiz, saveQuizResult, getQuizHistory, gradeTheoryQuiz, getInteractionHistory, deleteInteraction, streamSummarize, streamStudyGuide, streamAskQuestion, explainSimpler, generateFlashcards, getSchedules, createSchedule, deleteSchedule, downloadPdf, generateMindMap, generateMultiQuiz, analyzeQuizPerformance, deleteDocument, getAnalytics, getSmartReadHighlights } from "@/lib/api";
 import { MermaidChart } from "@/components/MermaidChart";
 import { gradeQuiz } from "@/lib/quizValidation";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -43,8 +44,23 @@ function DashboardPage() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [cmdOpen, setCmdOpen] = useState(false);
   const [cmdQuery, setCmdQuery] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
   const [user, setUser] = useState<any>(null);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
+    return (localStorage.getItem('theme') as 'light' | 'dark') || 
+      (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+  });
+
+  useEffect(() => {
+    const root = window.document.documentElement;
+    root.classList.remove('light', 'dark');
+    root.classList.add(theme);
+    localStorage.setItem('theme', theme);
+  }, [theme]);
   const [documents, setDocuments] = useState<any[]>([]);
+  const [askHistory, setAskHistory] = useState<{q: string, a: string}[]>([]);
+  const [smartHighlights, setSmartHighlights] = useState<string[]>([]);
   const [quizHistory, setQuizHistory] = useState<any[]>([]);
   const [interactionHistory, setInteractionHistory] = useState<any[]>([]);
   const [activeTab, setActiveTab] = useState<string>('overview');
@@ -54,7 +70,7 @@ function DashboardPage() {
   
   // AI Modal State
   const [selectedDoc, setSelectedDoc] = useState<any>(null);
-  const [aiMode, setAiMode] = useState<'summary' | 'ask' | 'guide' | 'quiz' | 'history' | 'flashcards' | 'mindmap' | null>(null);
+  const [aiMode, setAiMode] = useState<'summary' | 'ask' | 'guide' | 'quiz' | 'history' | 'flashcards' | 'mindmap' | 'read' | null>(null);
   const [quizType, setQuizType] = useState<'objective' | 'interactive_theory' | 'practice_paper'>('objective');
   const [aiResult, setAiResult] = useState<string>("");
   const [aiLoading, setAiLoading] = useState(false);
@@ -98,6 +114,12 @@ function DashboardPage() {
   const [multiIsGradingTheory, setMultiIsGradingTheory] = useState(false);
   const [multiPerformanceReport, setMultiPerformanceReport] = useState<any>(null);
   const [isAnalyzingPerformance, setIsAnalyzingPerformance] = useState(false);
+
+  // Smart Reader UI States
+  const [readerFontSize, setReaderFontSize] = useState<'sm' | 'base' | 'lg' | 'xl'>('base');
+  const [readerSearchQuery, setReaderSearchQuery] = useState('');
+  const [readerCopied, setReaderCopied] = useState(false);
+  const [activeHighlightIndex, setActiveHighlightIndex] = useState<number | null>(null);
 
 
   useEffect(() => {
@@ -277,7 +299,7 @@ function DashboardPage() {
     }
   };
 
-  const runAiAction = async (mode: 'summary' | 'guide' | 'quiz' | 'ask' | 'history' | 'flashcards' | 'mindmap') => {
+  const runAiAction = async (mode: 'summary' | 'guide' | 'quiz' | 'ask' | 'history' | 'flashcards' | 'mindmap' | 'read') => {
     if (!selectedDoc) return;
     setAiMode(mode);
     if (mode !== 'history') setAiLoading(true);
@@ -287,31 +309,11 @@ function DashboardPage() {
     
     try {
       if (mode === 'summary') {
-        setAiLoading(false); // Hide spinner, show streaming text instead
-        setAiResult("...............................");
-        let isFirst = true;
-        await streamSummarize(selectedDoc.id, (chunk) => {
-          if (isFirst) {
-            setAiResult(chunk);
-            isFirst = false;
-          } else {
-            setAiResult((prev) => prev + chunk);
-          }
-        });
-        getInteractionHistory().then(setInteractionHistory).catch(console.error);
+        const res = await summarizeDocument(selectedDoc.id);
+        setAiResult(res.summary);
       } else if (mode === 'guide') {
-        setAiLoading(false);
-        setAiResult("...............................");
-        let isFirst = true;
-        await streamStudyGuide(selectedDoc.id, (chunk) => {
-          if (isFirst) {
-            setAiResult(chunk);
-            isFirst = false;
-          } else {
-            setAiResult((prev) => prev + chunk);
-          }
-        });
-        getInteractionHistory().then(setInteractionHistory).catch(console.error);
+        const res = await generateStudyGuide(selectedDoc.id);
+        setAiResult(res.study_guide);
       } else if (mode === 'quiz') {
         const res = await generateQuiz(selectedDoc.id, quizType, numQuestions);
         try {
@@ -363,6 +365,12 @@ function DashboardPage() {
         const res = await generateMindMap(selectedDoc.id);
         setAiResult(res.mindmap);
         getInteractionHistory().then(setInteractionHistory).catch(console.error);
+      } else if (mode === 'read') {
+        const res = await getSmartReadHighlights(selectedDoc.id);
+        setSmartHighlights(res.highlights || []);
+        if (res.extracted_text) {
+          setSelectedDoc(prev => prev ? { ...prev, extracted_text: res.extracted_text } : prev);
+        }
       }
     } catch (err: any) {
       const errMsg = err.message || "";
@@ -450,6 +458,17 @@ function DashboardPage() {
       }
     } catch (err: any) {
       toast.error(err.message || "Failed to delete document.");
+    }
+  };
+
+  const handleDeleteSchedule = async (id: number) => {
+    if (!confirm("Delete this study plan? This cannot be undone.")) return;
+    try {
+      await deleteSchedule(id);
+      toast.success("Study plan deleted.");
+      setSchedules(prev => prev.filter((s: any) => s.id !== id));
+    } catch (err: any) {
+      toast.error(err.message || "Failed to delete schedule.");
     }
   };
 
@@ -733,7 +752,7 @@ function DashboardPage() {
           {sidebarCollapsed && <div className="my-4 border-t border-white/5" />}
           <ul className="space-y-1">
             <li>
-              <button className={`flex w-full items-center rounded-xl px-2.5 py-2.5 text-sm font-medium text-muted-foreground transition-all hover:bg-secondary hover:text-foreground ${sidebarCollapsed ? 'justify-center' : 'gap-3'}`} title={sidebarCollapsed ? 'Settings' : undefined}>
+              <button onClick={() => setIsSettingsOpen(true)} className={`flex w-full items-center rounded-xl px-2.5 py-2.5 text-sm font-medium text-muted-foreground transition-all hover:bg-secondary hover:text-foreground ${sidebarCollapsed ? 'justify-center' : 'gap-3'}`} title={sidebarCollapsed ? 'Settings' : undefined}>
                 <Settings className="h-5 w-5 shrink-0" />{!sidebarCollapsed && ' Settings'}
               </button>
             </li>
@@ -777,11 +796,21 @@ function DashboardPage() {
           </button>
 
           <div className="relative flex-1 max-w-md hidden sm:block">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              placeholder="Search notes, summaries, courses…"
-              className="h-10 w-full rounded-full border-border/50 bg-secondary/50 pl-10 text-sm focus-visible:bg-background focus-visible:ring-1 focus-visible:ring-primary"
-            />
+            {['documents', 'planner', 'quizzes'].includes(activeTab) && (
+              <>
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder={
+                    activeTab === 'documents' ? "Filter your documents…" :
+                    activeTab === 'planner' ? "Filter study plans…" :
+                    "Filter quiz history…"
+                  }
+                  className="h-10 w-full rounded-full border-border/50 bg-secondary/50 pl-10 text-sm focus-visible:bg-background focus-visible:ring-1 focus-visible:ring-primary transition-all"
+                />
+              </>
+            )}
           </div>
 
           <div className="ml-auto flex items-center gap-3">
@@ -865,7 +894,7 @@ function DashboardPage() {
 
             {activeTab === 'documents' && (
               <MyDocuments 
-                documents={documents}
+                documents={documents.filter(d => d.title.toLowerCase().includes(searchQuery.toLowerCase()))}
                 setSelectedDoc={setSelectedDoc}
                 setAiMode={setAiMode}
                 setAiResult={setAiResult}
@@ -908,12 +937,17 @@ function DashboardPage() {
             </AnimatePresence>
 
             {activeTab === 'planner' && (
-              <StudyPlanner schedules={schedules} setPlannerOpen={setPlannerOpen} />
+              <StudyPlanner
+                schedules={schedules.filter(s => s.exam_name.toLowerCase().includes(searchQuery.toLowerCase()))}
+                documents={documents}
+                setPlannerOpen={setPlannerOpen}
+                onDelete={handleDeleteSchedule}
+              />
             )}
 
             {activeTab === 'quizzes' && (
               <QuizHistory 
-                quizHistory={quizHistory} 
+                quizHistory={quizHistory.filter(q => documents.find(d => d.id === q.document)?.title.toLowerCase().includes(searchQuery.toLowerCase()) || q.quiz_type.toLowerCase().includes(searchQuery.toLowerCase()))} 
                 documents={documents} 
                 setSelectedDoc={setSelectedDoc} 
                 setAiMode={setAiMode} 
@@ -945,6 +979,13 @@ function DashboardPage() {
             <div className="flex-1 overflow-y-auto p-4 space-y-2">
               <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3 px-2">Tools</div>
               
+              <button 
+                onClick={() => runAiAction('read')}
+                className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium transition-all ${aiMode === 'read' ? 'bg-primary text-primary-foreground shadow-md shadow-primary/20' : 'hover:bg-secondary text-foreground/80'}`}
+              >
+                <BookOpen className="h-5 w-5" /> Smart Reading Mode
+              </button>
+
               <button 
                 onClick={() => runAiAction('summary')}
                 className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium transition-all ${aiMode === 'summary' ? 'bg-primary text-primary-foreground shadow-md shadow-primary/20' : 'hover:bg-secondary text-foreground/80'}`}
@@ -1399,6 +1440,264 @@ function DashboardPage() {
                     </div>
                   )}
                 </div>
+              ) : aiMode === 'read' ? (
+                <div className="max-w-4xl mx-auto pb-16 animate-in fade-in slide-in-from-bottom-6 duration-500">
+                  {/* Header & Title Banner */}
+                  <div className="bg-gradient-to-r from-primary/10 via-amber-500/5 to-transparent border border-primary/20 rounded-3xl p-6 md:p-8 mb-6 shadow-lg backdrop-blur-xl relative overflow-hidden">
+                    <div className="absolute top-0 right-0 p-8 opacity-10 pointer-events-none">
+                      <BookOpen className="h-32 w-32 text-primary" />
+                    </div>
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 relative z-10">
+                      <div className="flex items-start gap-4">
+                        <div className="h-12 w-12 rounded-2xl bg-primary text-primary-foreground flex items-center justify-center shadow-md shadow-primary/30 shrink-0">
+                          <BookOpen className="h-6 w-6" />
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2 flex-wrap mb-1">
+                            <span className="px-2.5 py-0.5 rounded-full bg-primary/15 text-primary text-xs font-bold uppercase tracking-wider border border-primary/30">
+                              Smart Reader Active
+                            </span>
+                            {smartHighlights && smartHighlights.length > 0 && (
+                              <span className="px-2.5 py-0.5 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 text-xs font-bold border border-amber-500/30">
+                                ✨ {smartHighlights.length} AI Highlights
+                              </span>
+                            )}
+                          </div>
+                          <h2 className="font-display text-2xl md:text-3xl font-bold tracking-tight text-foreground">{selectedDoc?.title}</h2>
+                        </div>
+                      </div>
+
+                      {/* Stats Badges */}
+                      <div className="flex items-center gap-3 text-xs font-semibold text-muted-foreground bg-background/60 dark:bg-card/60 backdrop-blur-md px-4 py-2.5 rounded-2xl border border-border/50 shadow-sm self-start md:self-auto">
+                        <div className="flex items-center gap-1.5">
+                          <Clock className="h-4 w-4 text-primary" />
+                          <span>~{Math.max(1, Math.ceil(((selectedDoc?.extracted_text || '').split(/\s+/).filter(Boolean).length) / 200))} min read</span>
+                        </div>
+                        <span className="text-border">|</span>
+                        <div className="flex items-center gap-1.5">
+                          <FileText className="h-4 w-4 text-amber-500" />
+                          <span>{((selectedDoc?.extracted_text || '').split(/\s+/).filter(Boolean).length).toLocaleString()} words</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Reader Control Toolbar */}
+                  <div className="sticky top-2 z-30 mb-6 bg-card/90 dark:bg-zinc-900/90 backdrop-blur-xl border border-border/60 rounded-2xl p-3 shadow-md flex flex-wrap items-center justify-between gap-3">
+                    {/* Search inside text */}
+                    <div className="flex items-center gap-2 bg-secondary/40 rounded-xl px-3 py-1.5 border border-border/40 flex-1 min-w-[200px]">
+                      <Search className="h-4 w-4 text-muted-foreground shrink-0" />
+                      <input
+                        type="text"
+                        placeholder="Search document text..."
+                        value={readerSearchQuery}
+                        onChange={(e) => setReaderSearchQuery(e.target.value)}
+                        className="bg-transparent text-xs text-foreground placeholder:text-muted-foreground outline-none w-full"
+                      />
+                      {readerSearchQuery && (
+                        <button onClick={() => setReaderSearchQuery('')} className="text-muted-foreground hover:text-foreground text-xs">
+                          <X className="h-3 w-3" />
+                        </button>
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-2 flex-wrap">
+                      {/* Font Size Selector */}
+                      <div className="flex items-center bg-secondary/40 rounded-xl p-1 border border-border/40">
+                        <span className="text-[10px] uppercase font-bold text-muted-foreground px-2">Size</span>
+                        {(['sm', 'base', 'lg', 'xl'] as const).map((size) => (
+                          <button
+                            key={size}
+                            onClick={() => setReaderFontSize(size)}
+                            className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all ${
+                              readerFontSize === size
+                                ? 'bg-primary text-primary-foreground shadow-sm'
+                                : 'text-muted-foreground hover:text-foreground'
+                            }`}
+                          >
+                            {size.toUpperCase()}
+                          </button>
+                        ))}
+                      </div>
+
+                      {/* Listen / TTS Button */}
+                      <button
+                        onClick={handleTTS}
+                        className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-bold transition-all ${
+                          isSpeaking
+                            ? 'border-red-500/40 bg-red-500/10 text-red-500 animate-pulse'
+                            : 'border-border/50 bg-secondary/40 hover:bg-secondary text-foreground'
+                        }`}
+                      >
+                        {isSpeaking ? <VolumeX className="h-3.5 w-3.5" /> : <Volume2 className="h-3.5 w-3.5 text-primary" />}
+                        {isSpeaking ? 'Stop Reading' : 'Listen'}
+                      </button>
+
+                      {/* Copy Text Button */}
+                      <button
+                        onClick={() => {
+                          if (selectedDoc?.extracted_text) {
+                            navigator.clipboard.writeText(selectedDoc.extracted_text);
+                            setReaderCopied(true);
+                            toast.success("Document text copied to clipboard!");
+                            setTimeout(() => setReaderCopied(false), 2000);
+                          }
+                        }}
+                        className="inline-flex items-center gap-1.5 rounded-xl border border-border/50 bg-secondary/40 hover:bg-secondary px-3 py-1.5 text-xs font-bold text-foreground transition-all"
+                      >
+                        {readerCopied ? <Check className="h-3.5 w-3.5 text-green-500" /> : <Copy className="h-3.5 w-3.5 text-muted-foreground" />}
+                        {readerCopied ? 'Copied!' : 'Copy Text'}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* AI Highlights Navigation Bar (if available) */}
+                  {smartHighlights && smartHighlights.length > 0 && (
+                    <div className="mb-6 bg-amber-500/5 border border-amber-500/20 rounded-2xl p-4 shadow-sm">
+                      <div className="flex items-center justify-between gap-2 mb-3">
+                        <div className="flex items-center gap-2 text-xs font-bold text-amber-700 dark:text-amber-300 uppercase tracking-wider">
+                          <Sparkles className="h-4 w-4 text-amber-500" />
+                          <span>AI Key Concepts (Click to jump)</span>
+                        </div>
+                        <span className="text-[11px] text-muted-foreground">{smartHighlights.length} Key Concepts</span>
+                      </div>
+                      <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto pr-1">
+                        {smartHighlights.map((phrase, idx) => (
+                          <button
+                            key={idx}
+                            onClick={() => {
+                              setActiveHighlightIndex(idx);
+                              const el = document.getElementById(`hl-${idx}`);
+                              if (el) {
+                                el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                              }
+                            }}
+                            className={`text-xs px-3 py-1.5 rounded-xl border transition-all text-left truncate max-w-xs ${
+                              activeHighlightIndex === idx
+                                ? 'bg-amber-500 text-black font-bold border-amber-600 shadow-md ring-2 ring-amber-500/40'
+                                : 'bg-background/80 hover:bg-amber-500/10 text-foreground border-border/60 hover:border-amber-500/40'
+                            }`}
+                            title={phrase}
+                          >
+                            <span className="text-amber-500 font-bold mr-1">#{idx + 1}</span> {phrase}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Reader Canvas Card */}
+                  <div className="bg-card border border-border/50 rounded-3xl p-6 md:p-12 shadow-xl relative backdrop-blur-xl">
+                    <div className={`prose dark:prose-invert max-w-none ${
+                      readerFontSize === 'sm' ? 'text-xs md:text-sm leading-normal' :
+                      readerFontSize === 'base' ? 'text-sm md:text-base leading-relaxed' :
+                      readerFontSize === 'lg' ? 'text-base md:text-lg leading-relaxed' :
+                      'text-lg md:text-xl leading-loose'
+                    }`}>
+                      {(() => {
+                        let text = selectedDoc?.extracted_text || "No text available.";
+
+                        // Step 1: Escape HTML to prevent injection
+                        const escapeHtml = (str: string) => str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+                        let safeText = escapeHtml(text);
+
+                        // Step 2: Intelligent Section & Bullet Separator
+                        // Restores missing line breaks before numbered topics, bullet points, and key sections
+                        safeText = safeText
+                          .replace(/([\.!\?])\s+(\d+\.\s+[A-Z])/g, '$1\n\n$2') // e.g. "errors. 6. Programming" -> "errors.\n\n6. Programming"
+                          .replace(/([^\n])\s+([\u2022\u25CB\u25CF\u25E6\-]\s+)/g, '$1\n$2') // e.g. "1958 • Created" -> "1958\n• Created"
+                          .replace(/([^\n])\s+((?:Paradigm|Features|Characteristics|Architecture|Knowledge Base):)/gi, '$1\n$2'); // e.g. "programming • Paradigm:" -> "\n• Paradigm:"
+
+                        // Step 3: Highlight user search term first if present
+                        if (readerSearchQuery.trim()) {
+                          const queryEscaped = readerSearchQuery.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                          const searchRegex = new RegExp(`(${queryEscaped})`, 'gi');
+                          safeText = safeText.replace(searchRegex, '<mark class="bg-cyan-400/40 dark:bg-cyan-500/40 text-cyan-950 dark:text-cyan-100 font-bold px-1 rounded shadow-sm">$1</mark>');
+                        }
+
+                        // Step 4: Highlight AI Smart Concepts
+                        if (smartHighlights && smartHighlights.length > 0) {
+                          smartHighlights.forEach((phrase, idx) => {
+                            if (!phrase || phrase.length < 4) return;
+                            const safePhrase = escapeHtml(phrase);
+                            const escapedPhrase = safePhrase.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                            const regex = new RegExp(`(${escapedPhrase})`, 'gi');
+                            const isActive = activeHighlightIndex === idx;
+                            safeText = safeText.replace(regex, 
+                              `<mark id="hl-${idx}" class="bg-amber-400/40 dark:bg-amber-500/35 border-b-2 ${isActive ? 'border-amber-600 bg-amber-400/70 font-bold ring-2 ring-amber-500/50' : 'border-amber-500/80'} text-amber-950 dark:text-amber-100 px-1.5 py-0.5 rounded font-semibold inline transition-all duration-300 shadow-sm">$1</mark>`
+                            );
+                          });
+                        }
+
+                        // Step 5: Split by double newlines into major section blocks
+                        const blocks = safeText.split(/\n\s*\n/);
+
+                        return blocks.map((block, blockIdx) => {
+                          const trimmed = block.trim();
+                          if (!trimmed) return null;
+
+                          // Check if block is a Major Section Header (e.g. "6. Programming Languages for AI", "Knowledge Acquisition Bottleneck:")
+                          const isMajorHeader = /^(?:\d+[\.\)]\s+[A-Z]|[A-Z][A-Za-z0-9\s,\-\/]{3,65}:?$)/.test(trimmed) && trimmed.length < 90 && !trimmed.endsWith('.');
+
+                          if (isMajorHeader) {
+                            return (
+                              <div key={blockIdx} className="mt-10 mb-5 pt-6 border-t border-border/50">
+                                <h3 className="font-display text-xl md:text-2xl font-bold text-primary tracking-tight flex items-center gap-3">
+                                  <span className="h-6 w-1.5 rounded-full bg-primary inline-block shrink-0" />
+                                  <span dangerouslySetInnerHTML={{ __html: trimmed }} />
+                                </h3>
+                              </div>
+                            );
+                          }
+
+                          // Split internal lines inside the block
+                          const lines = trimmed.split('\n');
+
+                          return (
+                            <div key={blockIdx} className="mb-6 space-y-3">
+                              {lines.map((line, lineIdx) => {
+                                const cleanLine = line.trim();
+                                if (!cleanLine) return null;
+
+                                // Check if line is a bullet item (starts with •, ○, -, *)
+                                const isBullet = /^[\u2022\u25CB\u25CF\u25E6\-\*]\s*/.test(cleanLine);
+                                // Check if line is a sub-topic header (starts with "1. Title", "2. Title", or "Paradigm:")
+                                const isSubHeader = /^(?:\d+[\.\)]\s+[A-Z]|(?:Paradigm|Features|Characteristics|Architecture):)/.test(cleanLine);
+
+                                if (isBullet) {
+                                  const content = cleanLine.replace(/^[\u2022\u25CB\u25CF\u25E6\-\*]\s*/, '');
+                                  return (
+                                    <div key={lineIdx} className="flex items-start gap-3 pl-4 md:pl-6 py-1 border-l-2 border-primary/25 hover:border-primary/60 transition-colors">
+                                      <span className="text-primary font-bold text-base select-none shrink-0">•</span>
+                                      <div className="text-foreground/90 font-sans leading-relaxed flex-1" dangerouslySetInnerHTML={{ __html: content }} />
+                                    </div>
+                                  );
+                                }
+
+                                if (isSubHeader) {
+                                  return (
+                                    <div key={lineIdx} className="mt-5 mb-2 font-display text-lg font-bold text-foreground tracking-tight flex items-center gap-2">
+                                      <span className="h-2 w-2 rounded-full bg-amber-500 inline-block shrink-0" />
+                                      <span dangerouslySetInnerHTML={{ __html: cleanLine }} />
+                                    </div>
+                                  );
+                                }
+
+                                return (
+                                  <p
+                                    key={lineIdx}
+                                    className="text-foreground/90 font-sans leading-relaxed text-left"
+                                    dangerouslySetInnerHTML={{ __html: cleanLine }}
+                                  />
+                                );
+                              })}
+                            </div>
+                          );
+                        });
+                      })()}
+                    </div>
+                  </div>
+                </div>
               ) : aiMode === 'history' ? (
                 <div className="max-w-4xl mx-auto w-full animate-in fade-in duration-500">
                   <div className="flex items-center gap-3 mb-8 pb-4 border-b border-border/50">
@@ -1775,6 +2074,92 @@ function DashboardPage() {
               {plannerLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Calendar className="h-4 w-4 mr-2" />}
               Generate Plan
             </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Settings Modal */}
+      <Dialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
+        <DialogContent className="max-w-md p-0 overflow-hidden border-border/50 shadow-2xl rounded-3xl bg-card">
+          <div className="p-6 pb-4 border-b border-border/40">
+            <DialogTitle className="text-xl font-display font-bold">App Settings</DialogTitle>
+            <DialogDescription className="text-sm">Manage your account and app preferences.</DialogDescription>
+          </div>
+          
+          <div className="p-6 space-y-6">
+            {/* Account Settings */}
+            <div>
+              <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground mb-3">Account</h3>
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-foreground">Name</p>
+                    <p className="text-xs text-muted-foreground">{user?.first_name} {user?.last_name} ({user?.username})</p>
+                  </div>
+                </div>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-foreground">Email Address</p>
+                    <p className="text-xs text-muted-foreground">{user?.email}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Appearance */}
+            <div className="pt-4 border-t border-border/40">
+              <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground mb-3">Appearance</h3>
+              
+              <div className="flex items-center justify-between p-3 rounded-2xl bg-secondary/50 border border-border/50">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-xl bg-background border shadow-sm">
+                    {theme === 'dark' ? <Settings className="h-4 w-4 text-primary" /> : <Lightbulb className="h-4 w-4 text-amber-500" />}
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-foreground">Theme Mode</p>
+                    <p className="text-[11px] text-muted-foreground">Switch between Light and Dark mode.</p>
+                  </div>
+                </div>
+                <div className="flex gap-1 bg-background p-1 rounded-full border shadow-sm">
+                  <button 
+                    onClick={() => setTheme('light')}
+                    className={`px-3 py-1.5 text-xs font-semibold rounded-full transition-colors ${theme === 'light' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-secondary'}`}
+                  >
+                    Light
+                  </button>
+                  <button 
+                    onClick={() => setTheme('dark')}
+                    className={`px-3 py-1.5 text-xs font-semibold rounded-full transition-colors ${theme === 'dark' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-secondary'}`}
+                  >
+                    Dark
+                  </button>
+                </div>
+              </div>
+            </div>
+            
+            {/* Notifications */}
+            <div className="pt-4 border-t border-border/40">
+              <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground mb-3">Notifications</h3>
+              <div className="flex items-center justify-between p-3 rounded-2xl bg-secondary/50 border border-border/50">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-xl bg-background border shadow-sm">
+                    <Bell className="h-4 w-4 text-emerald-500" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-foreground">Study Reminders</p>
+                    <p className="text-[11px] text-muted-foreground">Get notified when a study schedule is due.</p>
+                  </div>
+                </div>
+                <div className="h-5 w-9 rounded-full bg-primary/20 flex items-center p-0.5 cursor-pointer relative transition-colors border">
+                   <div className="h-4 w-4 rounded-full bg-primary shadow-sm transform translate-x-3.5 transition-transform"></div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+
+          <div className="p-4 bg-secondary/30 border-t border-border/40 flex justify-end">
+            <Button onClick={() => setIsSettingsOpen(false)} className="rounded-full">Done</Button>
           </div>
         </DialogContent>
       </Dialog>

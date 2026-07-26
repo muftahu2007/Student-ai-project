@@ -59,3 +59,18 @@ Ai dashboard/dist/
 sign in lovable/node_modules/
 sign in lovable/dist/
 backend/venv/
+
+# Testing & Coverage
+.pytest_cache/
+.coverage
+htmlcov/
+coverage.xml
+
+# Databases
+backend/chroma_db/
+backend/documents/*
+!backend/documents/.gitkeep
+
+# Temp artifacts
+test_review.md
+

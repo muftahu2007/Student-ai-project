@@ -316,6 +316,21 @@ class TestSummarize:
         stats = UserStats.objects.get(user=sample_document.user)
         assert stats.summaries_generated == 1
 
+    @patch("api.views._generate")
+    @patch("api.views._ensure_extracted_text", return_value=True)
+    def test_summarize_stream(self, _mock_ext, mock_gen, auth_client, sample_document):
+        # Mock _generate to yield chunks since stream=True
+        mock_chunk = MagicMock()
+        mock_chunk.text = "Streamed "
+        mock_gen.return_value = [mock_chunk, mock_chunk]
+        
+        url = reverse("document_summarize", kwargs={"doc_id": sample_document.id}) + "?stream=true"
+        response = auth_client.post(url)
+        assert response.status_code == 200
+        # For StreamingHttpResponse, we can read the content
+        content = b"".join(response.streaming_content).decode()
+        assert content == "Streamed Streamed "
+
     @patch("api.views._generate", return_value=_mock_ai_response("Summary"))
     @patch("api.views._ensure_extracted_text", return_value=True)
     def test_summarize_saves_interaction(self, _mock_ext, _mock_gen, auth_client, sample_document):

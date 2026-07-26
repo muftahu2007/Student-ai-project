@@ -6,11 +6,18 @@ class EmailAuthBackend:
     Custom authentication backend to allow users to log in using either their username or email address.
     """
     def authenticate(self, request, username=None, password=None, **kwargs):
+        if not username:
+            return None
+            
+        username = str(username).strip()
+            
         try:
-            # Check if user exists with the given username or email
-            user = User.objects.filter(Q(username=username) | Q(email=username)).first()
-            if user and user.check_password(password):
-                return user
+            # Get all users that match the username or email (case-insensitive)
+            users = User.objects.filter(Q(username__iexact=username) | Q(email__iexact=username))
+            
+            for user in users:
+                if user.check_password(password):
+                    return user
         except Exception:
             return None
         return None

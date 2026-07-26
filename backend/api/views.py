@@ -117,6 +117,58 @@ class RegisterView(generics.CreateAPIView):
             'access': str(refresh.access_token),
         }, status=status.HTTP_201_CREATED)
 
+import requests
+
+class GoogleLoginView(APIView):
+    permission_classes = (AllowAny,)
+
+    def post(self, request):
+        access_token = request.data.get('access_token')
+        if not access_token:
+            return Response({"error": "No token provided"}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Verify the access token with Google
+        google_response = requests.get(f"https://www.googleapis.com/oauth2/v3/userinfo?access_token={access_token}")
+        
+        if not google_response.ok:
+            return Response({"error": "Invalid Google token"}, status=status.HTTP_400_BAD_REQUEST)
+            
+        user_info = google_response.json()
+        email = user_info.get("email")
+        
+        if not email:
+            return Response({"error": "No email provided by Google"}, status=status.HTTP_400_BAD_REQUEST)
+            
+        first_name = user_info.get("given_name", "")
+        last_name = user_info.get("family_name", "")
+        
+        # Ensure unique username
+        base_username = email.split('@')[0]
+        username = base_username
+        counter = 1
+        while User.objects.filter(username=username).exists() and not User.objects.filter(email=email).exists():
+            username = f"{base_username}{counter}"
+            counter += 1
+        
+        # Check if user exists, if not create
+        try:
+            user = User.objects.get(email=email)
+        except User.DoesNotExist:
+            user = User.objects.create_user(
+                username=username, 
+                email=email, 
+                password=User.objects.make_random_password(),
+                first_name=first_name,
+                last_name=last_name
+            )
+            
+        refresh = RefreshToken.for_user(user)
+        return Response({
+            'user': UserSerializer(user).data,
+            'refresh': str(refresh),
+            'access': str(refresh.access_token),
+        }, status=status.HTTP_200_OK)
+
 
 class DocumentListView(generics.ListCreateAPIView):
     serializer_class = DocumentSerializer
@@ -696,23 +748,71 @@ class ExplainSimplerView(APIView):
             return Response({"error": str(e)}, status=500)
 
 
+class SmartReadHighlightsView(APIView):
+    permission_classes = (IsAuthenticated,)
+
+    def get(self, request, doc_id):
+        try:
+            doc = Document.objects.get(id=doc_id, user=request.user)
+            _ensure_extracted_text(doc)
+
+            if not doc.extracted_text:
+                return Response({"highlights": [], "extracted_text": ""})
+
+            # Get the first 15k characters to avoid token limits, usually enough for a solid list of key terms
+            text = doc.extracted_text[:15000]
+
+            prompt = f"You are a reading assistant. Read the following text and extract exactly 10 to 15 key phrases, definitions, or crucial sentences that a student should highlight. IMPORTANT: You must return the phrases EXACTLY word-for-word as they appear in the text so we can do a string match. Return ONLY a valid JSON array of strings. No markdown, no other text.\n\nText:\n{text}"
+
+            import time, json, re
+            for attempt in range(3):
+                try:
+                    response = _generate(prompt)
+                    raw_json = response.text.strip()
+                    match = re.search(r'\[\s*".*"\s*\]', raw_json, re.DOTALL)
+                    if match:
+                        raw_json = match.group(0)
+                    else:
+                        if raw_json.startswith('```json'): raw_json = raw_json[7:]
+                        if raw_json.startswith('```'): raw_json = raw_json[3:]
+                        if raw_json.endswith('```'): raw_json = raw_json[:-3]
+                        raw_json = raw_json.strip()
+                    
+                    phrases = json.loads(raw_json)
+                    return Response({"highlights": phrases, "extracted_text": doc.extracted_text})
+                except Exception as rate_err:
+                    if ('429' in str(rate_err) or 'quota' in str(rate_err).lower()) and attempt < 2:
+                        time.sleep(15)
+                        continue
+                    if attempt == 2:
+                        return Response({"highlights": [], "extracted_text": doc.extracted_text}) # Graceful fallback if AI fails
+
+        except Document.DoesNotExist:
+            return Response({"error": "Document not found"}, status=404)
+        except Exception as e:
+            return Response({"highlights": [], "extracted_text": getattr(doc, 'extracted_text', '')}) # Graceful fallback
+
+
 class ResetPasswordView(APIView):
     permission_classes = (AllowAny,)
 
     def post(self, request):
-        email = request.data.get('email')
+        email = request.data.get('email', '').strip()
         new_password = request.data.get('new_password')
 
         if not email or not new_password:
             return Response({"error": "Email and new password are required."}, status=400)
 
         try:
-            user = User.objects.get(email=email)
-            user.set_password(new_password)
-            user.save()
+            users = User.objects.filter(email__iexact=email)
+            if not users.exists():
+                return Response({"error": "No account found with this email."}, status=404)
+
+            for user in users:
+                user.set_password(new_password)
+                user.save()
+
             return Response({"message": "Password reset successfully. You can now log in."})
-        except User.DoesNotExist:
-            return Response({"error": "No account found with this email."}, status=404)
         except Exception as e:
             return Response({"error": str(e)}, status=500)
 
@@ -1322,6 +1422,18 @@ class StudyScheduleListView(APIView):
             if '429' in str(e) or 'quota' in str(e).lower():
                 return Response({"error": "The AI is temporarily busy. Please try again."}, status=429)
             return Response({"error": str(e)}, status=500)
+
+
+class StudyScheduleDetailView(APIView):
+    permission_classes = (IsAuthenticated,)
+
+    def delete(self, request, pk):
+        try:
+            schedule = StudySchedule.objects.get(pk=pk, user=request.user)
+            schedule.delete()
+            return Response(status=204)
+        except StudySchedule.DoesNotExist:
+            return Response({"error": "Schedule not found"}, status=404)
 
 import io
 from django.http import FileResponse

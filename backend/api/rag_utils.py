@@ -1,7 +1,7 @@
 import os
 import fitz
 import chromadb
-from google import genai
+import google.generativeai as genai
 from django.conf import settings
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
@@ -16,22 +16,21 @@ def get_chroma_collection():
         _collection = _chroma_client.get_or_create_collection(name="student_documents")
     return _collection
 
-def _get_client():
-    """Return a configured google.genai Client."""
+def _setup_genai():
+    """Configure google.generativeai."""
     api_key = getattr(settings, 'GEMINI_API_KEY', None)
     if not api_key:
         raise ValueError("GEMINI_API_KEY is not set in Django settings.")
-    return genai.Client(api_key=api_key)
+    genai.configure(api_key=api_key)
 
 def get_gemini_embedding(text):
-    """Generate embedding using the new google.genai SDK."""
-    client = _get_client()
-    result = client.models.embed_content(
-        model="gemini-embedding-2",
-        contents=text,
+    """Generate embedding using google.generativeai SDK."""
+    _setup_genai()
+    result = genai.embed_content(
+        model="models/text-embedding-004",
+        content=text,
     )
-    # result.embeddings is a list of ContentEmbedding objects
-    return result.embeddings[0].values
+    return result['embedding']
 
 def process_and_store_document(document_id, file_path):
     """
@@ -63,14 +62,14 @@ def process_and_store_document(document_id, file_path):
     # 3 & 4. Embed and Store (one chunk at a time to avoid batch issues)
     if chunks:
         try:
-            client = _get_client()
+            _setup_genai()
             embeddings = []
             for chunk in chunks:
-                result = client.models.embed_content(
-                    model="gemini-embedding-2",
-                    contents=chunk,
+                result = genai.embed_content(
+                    model="models/text-embedding-004",
+                    content=chunk,
                 )
-                embeddings.append(result.embeddings[0].values)
+                embeddings.append(result['embedding'])
 
             collection = get_chroma_collection()
             collection.add(

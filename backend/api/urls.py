@@ -1,10 +1,11 @@
 from django.urls import path
-from .views import RegisterView, DocumentListView, DocumentDetailView, SummarizeDocumentView, QuestionAnswerView, StudyGuideView, QuizView, MultiDocumentQuizView, ResetPasswordView, UserProfileView, GradeTheoryQuizView, SaveQuizResultView, QuizHistoryListView, ExtractAdmissionLetterView, StudentProfileView, InteractionHistoryListView, InteractionHistoryDetailView, ExplainSimplerView, GenerateFlashcardsView, StudyScheduleListView, GeneratePDFView, GenerateMindMapView, QuizPerformanceAnalysisView, AnalyticsView
+from .views import RegisterView, GoogleLoginView, DocumentListView, DocumentDetailView, SummarizeDocumentView, QuestionAnswerView, StudyGuideView, QuizView, MultiDocumentQuizView, ResetPasswordView, UserProfileView, GradeTheoryQuizView, SaveQuizResultView, QuizHistoryListView, ExtractAdmissionLetterView, StudentProfileView, InteractionHistoryListView, InteractionHistoryDetailView, ExplainSimplerView, SmartReadHighlightsView, GenerateFlashcardsView, StudyScheduleListView, StudyScheduleDetailView, GeneratePDFView, GenerateMindMapView, QuizPerformanceAnalysisView, AnalyticsView
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
 urlpatterns = [
     path('auth/register/', RegisterView.as_view(), name='auth_register'),
     path('auth/login/', TokenObtainPairView.as_view(), name='auth_login'),
+    path('auth/google/', GoogleLoginView.as_view(), name='auth_google'),
     path('auth/refresh/', TokenRefreshView.as_view(), name='auth_refresh'),
     path('auth/me/', UserProfileView.as_view(), name='auth_me'),
     path('auth/profile/', StudentProfileView.as_view(), name='auth_profile'),
@@ -12,6 +13,7 @@ urlpatterns = [
     path('auth/reset-password/', ResetPasswordView.as_view(), name='auth_reset_password'),
     path('documents/', DocumentListView.as_view(), name='documents_list'),
     path('documents/<int:pk>/', DocumentDetailView.as_view(), name='document_detail'),
+    path('documents/<int:doc_id>/smart-read/', SmartReadHighlightsView.as_view(), name='document_smart_read'),
     path('documents/<int:doc_id>/summarize/', SummarizeDocumentView.as_view(), name='document_summarize'),
     path('documents/<int:doc_id>/ask/', QuestionAnswerView.as_view(), name='document_ask'),
     path('documents/<int:doc_id>/study-guide/', StudyGuideView.as_view(), name='document_study_guide'),
@@ -24,6 +26,7 @@ urlpatterns = [
     path('save-quiz-result/', SaveQuizResultView.as_view(), name='save_quiz_result'),
     path('explain-simpler/', ExplainSimplerView.as_view(), name='explain_simpler'),
     path('schedules/', StudyScheduleListView.as_view(), name='schedules_list'),
+    path('schedules/<int:pk>/', StudyScheduleDetailView.as_view(), name='schedule_detail'),
     path('generate-pdf/', GeneratePDFView.as_view(), name='generate_pdf'),
     path('documents/<int:doc_id>/mindmap/', GenerateMindMapView.as_view(), name='document_mindmap'),
     path('quiz/multi/', MultiDocumentQuizView.as_view(), name='multi_document_quiz'),
