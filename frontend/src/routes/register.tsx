@@ -1,4 +1,4 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
 import { useState } from "react";
 import { toast } from "sonner";
 import { register, googleLogin as googleLoginApi } from "@/lib/api";
@@ -26,7 +26,7 @@ function RegisterPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const navigate = useNavigate();
+  const router = useRouter();
 
   const handleGoogleSuccess = async (tokenResponse: any) => {
     setIsLoading(true);
@@ -35,7 +35,9 @@ function RegisterPage() {
       localStorage.setItem("access_token", data.access);
       localStorage.setItem("refresh_token", data.refresh);
       toast.success("Signed in with Google!");
-      navigate({ to: "/dashboard" });
+      setTimeout(() => {
+        router.navigate({ to: "/dashboard" });
+      }, 500);
     } catch (err) {
       toast.error("Google Sign-In failed. Please try again.");
     } finally {
@@ -68,7 +70,9 @@ function RegisterPage() {
       
       await register({ username, email, password });
       toast.success("Account created successfully! Please sign in.");
-      navigate({ to: "/login" });
+      setTimeout(() => {
+        router.navigate({ to: "/login" });
+      }, 500);
     } catch (error) {
       toast.error("Failed to create account. Email or username may already exist.");
       console.error(error);
