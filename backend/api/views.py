@@ -151,8 +151,10 @@ class GoogleLoginView(APIView):
             counter += 1
         
         # Check if user exists, if not create
+        is_new_user = False
         user = User.objects.filter(email__iexact=email).first()
         if not user:
+            is_new_user = True
             user = User.objects.create_user(
                 username=username, 
                 email=email, 
@@ -166,6 +168,7 @@ class GoogleLoginView(APIView):
             'user': UserSerializer(user).data,
             'refresh': str(refresh),
             'access': str(refresh.access_token),
+            'is_new_user': is_new_user,
         }, status=status.HTTP_200_OK)
 
 

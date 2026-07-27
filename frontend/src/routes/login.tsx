@@ -34,7 +34,12 @@ function LoginPage() {
       const data = await googleLoginApi(tokenResponse.access_token);
       localStorage.setItem("access_token", data.access);
       localStorage.setItem("refresh_token", data.refresh);
-      router.navigate({ to: "/dashboard" });
+      
+      if (data.is_new_user) {
+        router.navigate({ to: "/onboarding" });
+      } else {
+        router.navigate({ to: "/dashboard" });
+      }
     } catch (err) {
       setError("Google Sign-In failed. Please try again.");
     } finally {

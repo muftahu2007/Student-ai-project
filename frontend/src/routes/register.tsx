@@ -36,7 +36,11 @@ function RegisterPage() {
       localStorage.setItem("refresh_token", data.refresh);
       toast.success("Signed in with Google!");
       setTimeout(() => {
-        router.navigate({ to: "/dashboard" });
+        if (data.is_new_user) {
+          router.navigate({ to: "/onboarding" });
+        } else {
+          router.navigate({ to: "/dashboard" });
+        }
       }, 500);
     } catch (err) {
       toast.error("Google Sign-In failed. Please try again.");
