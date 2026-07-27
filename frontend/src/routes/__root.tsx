@@ -129,8 +129,14 @@ function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   
   // NOTE: In production, this securely loads from your .env file
-  const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || "YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com";
-  console.log("[Auth] Google Client ID loaded:", GOOGLE_CLIENT_ID.slice(0, 20) + "...");
+  let GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || "YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com";
+  
+  // Safely ensure it has the correct suffix (common copy-paste error)
+  if (GOOGLE_CLIENT_ID && !GOOGLE_CLIENT_ID.endsWith('.apps.googleusercontent.com') && !GOOGLE_CLIENT_ID.includes('YOUR_GOOGLE_CLIENT_ID')) {
+    GOOGLE_CLIENT_ID = `${GOOGLE_CLIENT_ID}.apps.googleusercontent.com`;
+  }
+  
+  console.log("[Auth] Google Client ID loaded:", GOOGLE_CLIENT_ID.slice(0, 30) + "...");
 
   return (
     <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
