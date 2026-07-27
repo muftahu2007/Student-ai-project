@@ -46,7 +46,7 @@ def auth_client(create_user):
 
 @pytest.fixture
 def setup_document_in_chroma(create_user, mock_chroma_persistent):
-    # Create the document in DB
+    # Create the document in DBhttps://student-ai-project-2koz-hqq7iitw9-mab3.vercel.app/login
     doc = Document.objects.create(
         user=create_user,
         title="Integration Doc",

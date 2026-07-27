@@ -151,9 +151,8 @@ class GoogleLoginView(APIView):
             counter += 1
         
         # Check if user exists, if not create
-        try:
-            user = User.objects.get(email=email)
-        except User.DoesNotExist:
+        user = User.objects.filter(email__iexact=email).first()
+        if not user:
             user = User.objects.create_user(
                 username=username, 
                 email=email, 
