@@ -128,14 +128,7 @@ import { GoogleOAuthProvider } from '@react-oauth/google';
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   
-  // NOTE: In production, this securely loads from your .env file
-  let GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || "YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com";
-  
-  // Safely ensure it has the correct suffix (common copy-paste error)
-  if (GOOGLE_CLIENT_ID && !GOOGLE_CLIENT_ID.endsWith('.apps.googleusercontent.com') && !GOOGLE_CLIENT_ID.includes('YOUR_GOOGLE_CLIENT_ID')) {
-    GOOGLE_CLIENT_ID = `${GOOGLE_CLIENT_ID}.apps.googleusercontent.com`;
-  }
-  
+  const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || "826092912430-3tq42hu4pscp6a9ndtr7qvs6bfn0drtg.apps.googleusercontent.com";
   console.log("[Auth] Google Client ID loaded:", GOOGLE_CLIENT_ID.slice(0, 30) + "...");
 
   return (
