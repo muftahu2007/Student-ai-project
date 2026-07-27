@@ -10,7 +10,10 @@ import {
 import { useEffect, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
-import { reportLovableError } from "../lib/lovable-error-reporting";
+// Simple error reporter (replaces Lovable-editor-only module)
+const reportLovableError = (error: Error, context?: Record<string, unknown>) => {
+  console.error("[BUK Scholar Error]", error.message, context);
+};
 
 function NotFoundComponent() {
   return (
