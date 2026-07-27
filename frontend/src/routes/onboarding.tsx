@@ -1,4 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { API_BASE_URL } from "../lib/api";
 import { useState } from "react";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
@@ -49,7 +50,7 @@ function OnboardingComponent() {
 
     try {
       const token = localStorage.getItem("access_token");
-      const res = await fetch("http://127.0.0.1:8000/api/auth/extract-admission/", {
+      const res = await fetch(`${API_BASE_URL}/auth/extract-admission/`, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -87,7 +88,7 @@ function OnboardingComponent() {
 
     try {
       const token = localStorage.getItem("access_token");
-      const res = await fetch("http://127.0.0.1:8000/api/auth/profile/", {
+      const res = await fetch(`${API_BASE_URL}/auth/profile/`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
