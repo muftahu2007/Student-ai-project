@@ -108,7 +108,7 @@ function RegisterPage() {
           <Label htmlFor="name">Full name</Label>
           <div className="relative">
             <User className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input id="name" type="text" placeholder="Aisha Ibrahim" className="h-11 pl-9" autoComplete="name" value={name} onChange={(e) => setName(e.target.value)} />
+            <Input id="name" type="text" placeholder="Mahab ahmad" className="h-11 pl-9" autoComplete="name" value={name} onChange={(e) => setName(e.target.value)} />
           </div>
         </div>
 
@@ -116,7 +116,7 @@ function RegisterPage() {
           <Label htmlFor="email">Student email</Label>
           <div className="relative">
             <Mail className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input id="email" type="email" placeholder="you@buk.edu.ng" className="h-11 pl-9" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+            <Input id="email" type="email" placeholder="you@gmail.com" className="h-11 pl-9" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} />
           </div>
         </div>
 

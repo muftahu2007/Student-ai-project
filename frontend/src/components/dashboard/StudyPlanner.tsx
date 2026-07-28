@@ -342,7 +342,7 @@ export function StudyPlanner({ schedules, documents, setPlannerOpen, onDelete }:
       </div>
 
       {schedules.length === 0 ? (
-        <div className="bg-card border border-border/50 rounded-3xl p-16 text-center shadow-sm">
+        <div className="bg-card border border-border/50 rounded-3xl p-8 md:p-16 text-center shadow-sm">
           <div className="flex items-center justify-center h-16 w-16 mx-auto mb-4 rounded-full bg-primary/10">
             <BookOpen className="h-8 w-8 text-primary/60" />
           </div>

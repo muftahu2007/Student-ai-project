@@ -21,7 +21,7 @@ export function MyDocuments({
     <motion.div key="documents" variants={pageVariants} initial="initial" animate="animate" exit="exit" className="space-y-8">
       <h2 className="font-display text-2xl font-bold mb-6">Your Documents</h2>
       {documents.length === 0 ? (
-        <div className="relative overflow-hidden bg-card/40 backdrop-blur-xl border border-white/5 rounded-3xl p-16 text-center shadow-2xl shadow-black/40">
+        <div className="relative overflow-hidden bg-card/40 backdrop-blur-xl border border-white/5 rounded-3xl p-8 md:p-16 text-center shadow-2xl shadow-black/40">
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-primary/10 rounded-full blur-[80px] pointer-events-none" />
           <div className="relative z-10 flex flex-col items-center">
             <div className="h-24 w-24 rounded-3xl bg-gradient-to-br from-primary/20 to-transparent border border-primary/20 flex items-center justify-center mb-6 shadow-2xl shadow-primary/20 rotate-3 transition-transform hover:rotate-0 duration-500">

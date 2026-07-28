@@ -42,6 +42,7 @@ import { QuizHistory } from "@/components/dashboard/QuizHistory";
 function DashboardPage() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [mobileToolsOpen, setMobileToolsOpen] = useState(false);
   const [cmdOpen, setCmdOpen] = useState(false);
   const [cmdQuery, setCmdQuery] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
@@ -378,7 +379,7 @@ function DashboardPage() {
       if (isQuota) {
         toast.error("Daily AI limit reached. Resets at ~9 AM Nigeria time.", { duration: 6000 });
         setAiResult(
-          "## ⏳ Aisha is Taking a Short Break\n\n" +
+          "## ⏳ Smart AI is Taking a Short Break\n\n" +
           "You've reached today's free AI quota. This resets every day at approximately **9:00 AM Nigeria time** (midnight Pacific).\n\n" +
           "**Your document is safely saved** — come back in the morning and everything will be ready to go.\n\n" +
           "**In the meantime, you can:**\n" +
@@ -497,7 +498,7 @@ function DashboardPage() {
     setMultiCurrentQ(0);
     setMultiUserAnswers({});
     setMultiTimeLeft(null);
-    toast.loading("Aisha is generating your multi-document quiz...", { id: 'multiquiz' });
+    toast.loading("Smart AI is generating your multi-document quiz...", { id: 'multiquiz' });
     try {
       const res = await generateMultiQuiz(selectedDocIds, multiQuizType, multiNumQuestions);
       let jsonStr = res.quiz;
@@ -543,7 +544,7 @@ function DashboardPage() {
       return;
     }
     setPlannerLoading(true);
-    toast.loading("Aisha is planning your study schedule...", { id: 'schedule' });
+    toast.loading("Smart AI is planning your study schedule...", { id: 'schedule' });
     try {
       await createSchedule(newScheduleExamName, newScheduleExamDate, newScheduleDocIds);
       toast.success("Schedule created successfully!", { id: 'schedule' });
@@ -845,7 +846,7 @@ function DashboardPage() {
               initial={{ opacity: 0, scale: 0.95 }} 
               animate={{ opacity: 1, scale: 1 }} 
               transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-              className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-zinc-900 via-zinc-900 to-zinc-950 p-8 text-white shadow-2xl ring-1 ring-white/10"
+              className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-zinc-900 via-zinc-900 to-zinc-950 p-5 sm:p-8 text-white shadow-2xl ring-1 ring-white/10"
             >
               <div className="pointer-events-none absolute -top-16 -right-16 h-56 w-56 rounded-full bg-primary/30 blur-3xl" />
               <div className="pointer-events-none absolute -bottom-10 left-8 h-36 w-36 rounded-full bg-amber-500/15 blur-3xl" />
@@ -962,12 +963,32 @@ function DashboardPage() {
       </div>
 
       {/* Premium AI Workspace Modal */}
-      <Dialog open={!!selectedDoc} onOpenChange={(open) => !open && setSelectedDoc(null)}>
-        <DialogContent className="max-w-6xl w-full h-[90vh] p-0 flex overflow-hidden bg-card/95 backdrop-blur-3xl border-border/50 shadow-2xl rounded-2xl">
-          
+      <Dialog open={!!selectedDoc} onOpenChange={(open) => { if (!open) { setSelectedDoc(null); setMobileToolsOpen(false); } }}>
+        <DialogContent className="max-w-6xl w-full h-[90vh] p-0 flex flex-col overflow-hidden bg-card/95 backdrop-blur-3xl border-border/50 shadow-2xl rounded-2xl">
+
+          {/* Mobile-only top strip with Tools toggle */}
+          <div className="md:hidden flex items-center justify-between border-b border-border/50 bg-background/80 backdrop-blur-xl px-4 py-2.5 shrink-0">
+            <div className="flex items-center gap-2 min-w-0 flex-1">
+              <div className="h-7 w-7 shrink-0 rounded-lg bg-primary/10 flex items-center justify-center">
+                <Sparkles className="h-3.5 w-3.5 text-primary" />
+              </div>
+              <span className="text-sm font-semibold truncate">{selectedDoc?.title}</span>
+            </div>
+            <button
+              onClick={() => setMobileToolsOpen(p => !p)}
+              className="ml-2 shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-primary/40 bg-primary/10 text-primary text-xs font-bold transition-all hover:bg-primary/20"
+            >
+              {mobileToolsOpen ? <X className="h-3.5 w-3.5" /> : <Menu className="h-3.5 w-3.5" />}
+              {mobileToolsOpen ? 'Back' : 'Tools'}
+            </button>
+          </div>
+
+          {/* Responsive body wrapper: column on mobile, row on md+ */}
+          <div className="flex flex-1 min-h-0 flex-col md:flex-row overflow-hidden">
+
           {/* Left Sidebar - Actions */}
-          <div className="w-64 md:w-72 border-r border-border/50 bg-background/50 flex flex-col h-full">
-            <div className="p-6 border-b border-border/50">
+          <div className={`${mobileToolsOpen ? 'flex' : 'hidden'} md:flex w-full md:w-64 lg:w-72 border-b md:border-b-0 md:border-r border-border/50 bg-background/50 flex-col overflow-y-auto`}>
+            <div className="hidden md:block p-6 border-b border-border/50">
               <div className="inline-flex items-center gap-2 rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary mb-4">
                 <Sparkles className="h-4 w-4" /> BUK AI Studio
               </div>
@@ -1085,10 +1106,10 @@ function DashboardPage() {
           </div>
 
           {/* Right Area - Content */}
-          <div className="flex-1 flex flex-col h-full bg-card relative">
+          <div className={`${mobileToolsOpen ? 'hidden md:flex' : 'flex'} flex-1 flex-col min-h-0 bg-card relative`}>
             <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-primary/5 via-background to-background pointer-events-none" />
             
-            <div className="flex-1 overflow-y-auto p-8 lg:p-12 z-10 scroll-smooth">
+            <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-10 z-10 scroll-smooth">
               {aiLoading ? (
                 <div className="flex flex-col items-center justify-center h-full text-muted-foreground animate-in fade-in duration-500">
                   <div className="relative flex items-center justify-center h-32 w-32 mb-8">
@@ -1098,7 +1119,7 @@ function DashboardPage() {
                       <Brain className="h-8 w-8 text-primary animate-pulse" />
                     </div>
                   </div>
-                  <h3 className="font-display text-2xl font-semibold text-foreground mb-3">Aisha is thinking...</h3>
+                  <h3 className="font-display text-2xl font-semibold text-foreground mb-3">Smart AI is thinking...</h3>
                   <p className="text-sm text-muted-foreground max-w-xs text-center mb-6">Analyzing your document with lightning-fast AI. This usually takes under 5 seconds.</p>
                   <div className="flex items-center gap-1.5">
                     <div className="h-2 w-2 rounded-full bg-primary animate-bounce" style={{animationDelay:'0ms'}} />
@@ -2007,6 +2028,7 @@ function DashboardPage() {
               )}
             </div>
           </div>
+          </div>{/* end responsive body wrapper */}
         </DialogContent>
       </Dialog>
 
@@ -2018,7 +2040,7 @@ function DashboardPage() {
               <Calendar className="h-6 w-6 text-primary" /> Create Study Plan
             </DialogTitle>
             <DialogDescription>
-              Select your exam date and the notes you need to study. Aisha will create a daily breakdown for you.
+              Select your exam date and the notes you need to study. Smart AI will create a daily breakdown for you.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
