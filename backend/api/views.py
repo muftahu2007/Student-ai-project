@@ -12,12 +12,12 @@ from .models import Document, UserStats, QuizHistory, StudentProfile, Interactio
 from .serializers import UserSerializer, DocumentSerializer, StudentProfileSerializer
 from rest_framework_simplejwt.tokens import RefreshToken
 import datetime
-import litellm
+from .llm_client import call_completion
 import os
 
 
 def _setup_api_keys():
-    """Eagerly push API keys into os.environ so litellm can find them."""
+    """Eagerly push API keys into os.environ so the LLM client can find them."""
     if getattr(settings, 'GEMINI_API_KEY', None):
         os.environ['GEMINI_API_KEY'] = settings.GEMINI_API_KEY
     if getattr(settings, 'GROQ_API_KEY', None):
@@ -65,26 +65,27 @@ def _generate(prompt, stream=False, system_prompt=None, history=None):
     for model in models:
         try:
             print(f"[AI] Trying model: {model}", flush=True)
-            response = litellm.completion(
-                model=model,
+            result = call_completion(
+                model_id=model,
                 messages=messages,
                 stream=stream
             )
 
             if stream:
-                def stream_adapter(res):
-                    for chunk in res:
-                        if getattr(chunk, 'choices', None) and len(chunk.choices) > 0:
-                            delta = getattr(chunk.choices[0], 'delta', None)
-                            if delta and getattr(delta, 'content', None):
-                                class MockChunk:
-                                    text = delta.content
-                                yield MockChunk()
-                return stream_adapter(response)
+                def stream_adapter(gen):
+                    for text_chunk in gen:
+                        class MockChunk:
+                            pass
+                        mc = MockChunk()
+                        mc.text = text_chunk
+                        yield mc
+                return stream_adapter(result)
             else:
                 class MockResponse:
-                    text = response.choices[0].message.content
-                return MockResponse()
+                    pass
+                mr = MockResponse()
+                mr.text = result
+                return mr
 
         except Exception as e:
             err_str = str(e)
@@ -226,15 +227,10 @@ def _ocr_pdf_with_gemini(file_path):
     """
     import time
     import base64
-    import litellm
     from django.conf import settings
     
-    if getattr(settings, 'GEMINI_API_KEY', None):
-        os.environ['GEMINI_API_KEY'] = settings.GEMINI_API_KEY
-    if getattr(settings, 'GROQ_API_KEY', None):
-        os.environ['GROQ_API_KEY'] = settings.GROQ_API_KEY
-    if getattr(settings, 'OPENROUTER_API_KEY', None):
-        os.environ['OPENROUTER_API_KEY'] = settings.OPENROUTER_API_KEY
+    # Ensure API keys are in env
+    _setup_api_keys()
 
     pdf_doc = fitz.open(file_path)
     full_text = ""
@@ -268,11 +264,10 @@ def _ocr_pdf_with_gemini(file_path):
         for model in vision_models:
             for attempt in range(2):
                 try:
-                    response = litellm.completion(
-                        model=model,
+                    extracted = call_completion(
+                        model_id=model,
                         messages=messages
                     )
-                    extracted = response.choices[0].message.content
                     if extracted:
                         full_text += extracted + "\n"
                     page_extracted = True

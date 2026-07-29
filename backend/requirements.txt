@@ -9,7 +9,6 @@ PyMuPDF==1.27.2
 dj-database-url==2.3.0
 chromadb
 langchain-text-splitters
-litellm
 whitenoise==6.7.0
 gunicorn==22.0.0
 requests

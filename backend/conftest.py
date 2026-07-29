@@ -3,7 +3,7 @@ conftest.py – project-level pytest fixtures and module stubs.
 
 All heavy third-party packages that are NOT needed for logic testing are
 stubbed out here BEFORE Django's app registry is populated.  This lets
-pytest collect and run every test even when the optional packages (litellm,
+pytest collect and run every test even when the optional packages (
 chromadb, PyMuPDF, reportlab, google-genai) are not installed in the venv.
 """
 
@@ -29,11 +29,11 @@ def _make_stub(name):
     return mod
 
 
-# ── litellm ──────────────────────────────────────────────────────────────────
-litellm_stub = _make_stub("litellm")
-litellm_stub.completion = MagicMock(return_value=MagicMock(
-    choices=[MagicMock(message=MagicMock(content="mocked litellm response"))]
-))
+# ── llm_client (replaces litellm) ────────────────────────────────────────────
+# The views module imports call_completion from api.llm_client.
+# We stub it so tests don't make real HTTP calls.
+llm_client_stub = _make_stub("api.llm_client")
+llm_client_stub.call_completion = MagicMock(return_value="mocked llm response")
 
 # ── google / google.genai / google.generativeai ───────────────────────────────
 _make_stub("google")
