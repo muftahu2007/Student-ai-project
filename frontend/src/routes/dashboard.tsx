@@ -303,6 +303,7 @@ function DashboardPage() {
   const runAiAction = async (mode: 'summary' | 'guide' | 'quiz' | 'ask' | 'history' | 'flashcards' | 'mindmap' | 'read') => {
     if (!selectedDoc) return;
     setAiMode(mode);
+    setMobileToolsOpen(false); // Close mobile tools drawer when action runs
     if (mode !== 'history') setAiLoading(true);
     setAiResult("");
     setQuizData(null);
