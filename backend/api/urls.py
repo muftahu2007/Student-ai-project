@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import RegisterView, GoogleLoginView, DocumentListView, DocumentDetailView, SummarizeDocumentView, QuestionAnswerView, StudyGuideView, QuizView, MultiDocumentQuizView, ResetPasswordView, UserProfileView, GradeTheoryQuizView, SaveQuizResultView, QuizHistoryListView, ExtractAdmissionLetterView, StudentProfileView, InteractionHistoryListView, InteractionHistoryDetailView, ExplainSimplerView, SmartReadHighlightsView, GenerateFlashcardsView, StudyScheduleListView, StudyScheduleDetailView, GeneratePDFView, GenerateMindMapView, QuizPerformanceAnalysisView, AnalyticsView
+from .views import RegisterView, GoogleLoginView, DocumentListView, DocumentDetailView, SummarizeDocumentView, QuestionAnswerView, StudyGuideView, QuizView, MultiDocumentQuizView, ResetPasswordView, UserProfileView, GradeTheoryQuizView, SaveQuizResultView, QuizHistoryListView, ExtractAdmissionLetterView, StudentProfileView, InteractionHistoryListView, InteractionHistoryDetailView, ExplainSimplerView, SmartReadHighlightsView, GenerateFlashcardsView, StudyScheduleListView, StudyScheduleDetailView, GeneratePDFView, GenerateMindMapView, QuizPerformanceAnalysisView, AnalyticsView, AdminStatsView
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
 urlpatterns = [
@@ -32,4 +32,5 @@ urlpatterns = [
     path('quiz/multi/', MultiDocumentQuizView.as_view(), name='multi_document_quiz'),
     path('quiz/analyze-performance/', QuizPerformanceAnalysisView.as_view(), name='quiz_analyze_performance'),
     path('analytics/', AnalyticsView.as_view(), name='analytics'),
+    path('admin/stats/', AdminStatsView.as_view(), name='admin_stats'),
 ]

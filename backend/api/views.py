@@ -6,7 +6,7 @@ from rest_framework import generics, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from django.http import StreamingHttpResponse
-from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework.permissions import IsAuthenticated, AllowAny, IsAdminUser
 from django.contrib.auth.models import User
 from .models import Document, UserStats, QuizHistory, StudentProfile, InteractionHistory
 from .serializers import UserSerializer, DocumentSerializer, StudentProfileSerializer
@@ -1653,4 +1653,118 @@ class AnalyticsView(APIView):
             "monthlyTrend": monthly_trend,
             "radarData": radar_data,
             "heatmapData": heatmap_data
+        })
+
+
+class AdminStatsView(APIView):
+    """
+    Admin-only analytics endpoint. Protected by IsAdminUser (Django superuser only).
+    Returns all aggregated stats for the admin dashboard.
+    """
+    permission_classes = [IsAdminUser]
+
+    def get(self, request):
+        from django.db.models import Count
+        from datetime import timedelta
+        import datetime
+
+        now = datetime.datetime.now(datetime.timezone.utc)
+
+        total_users = User.objects.count()
+        new_users_this_week = User.objects.filter(date_joined__gte=now - timedelta(days=7)).count()
+        total_documents = Document.objects.count()
+        total_quizzes = QuizHistory.objects.count()
+        total_summaries = InteractionHistory.objects.filter(interaction_type='summary').count()
+        total_chat = InteractionHistory.objects.filter(interaction_type='chat').count()
+        total_guides = InteractionHistory.objects.filter(interaction_type='study_guide').count()
+        total_ai_calls = InteractionHistory.objects.count() + total_quizzes
+
+        signups_by_month = []
+        for i in range(5, -1, -1):
+            month_start = (now.replace(day=1) - timedelta(days=i * 30)).replace(day=1, hour=0, minute=0, second=0)
+            month_end = (month_start + timedelta(days=32)).replace(day=1)
+            count = User.objects.filter(date_joined__gte=month_start, date_joined__lt=month_end).count()
+            signups_by_month.append({"month": month_start.strftime("%b"), "signups": count})
+
+        ai_by_day = []
+        for i in range(13, -1, -1):
+            day = now - timedelta(days=i)
+            count = (
+                InteractionHistory.objects.filter(created_at__date=day.date()).count() +
+                QuizHistory.objects.filter(created_at__date=day.date()).count()
+            )
+            ai_by_day.append({"day": day.strftime("%d %b"), "calls": count})
+
+        feature_usage = [
+            {"name": "Chat", "value": total_chat},
+            {"name": "Summaries", "value": total_summaries},
+            {"name": "Quizzes", "value": total_quizzes},
+            {"name": "Study Guides", "value": total_guides},
+        ]
+
+        activity_feed = []
+        for item in InteractionHistory.objects.select_related('user', 'document').order_by('-created_at')[:5]:
+            activity_feed.append({
+                "type": item.interaction_type,
+                "user": item.user.get_full_name() or item.user.username,
+                "email": item.user.email,
+                "detail": item.document.title if item.document else "",
+                "timestamp": item.created_at.isoformat(),
+            })
+        for item in QuizHistory.objects.select_related('user', 'document').order_by('-created_at')[:3]:
+            activity_feed.append({
+                "type": "quiz",
+                "user": item.user.get_full_name() or item.user.username,
+                "email": item.user.email,
+                "detail": item.document.title if item.document else "",
+                "timestamp": item.created_at.isoformat(),
+            })
+        for user in User.objects.order_by('-date_joined')[:3]:
+            activity_feed.append({
+                "type": "signup",
+                "user": user.get_full_name() or user.username,
+                "email": user.email,
+                "detail": "",
+                "timestamp": user.date_joined.isoformat(),
+            })
+        activity_feed.sort(key=lambda x: x["timestamp"], reverse=True)
+        activity_feed = activity_feed[:10]
+
+        users_data = []
+        for user in User.objects.select_related('stats', 'student_profile').prefetch_related('documents').order_by('-date_joined'):
+            profile = getattr(user, 'student_profile', None)
+            stats = getattr(user, 'stats', None)
+            users_data.append({
+                "id": user.id,
+                "username": user.username,
+                "email": user.email,
+                "full_name": user.get_full_name() or (profile.full_name if profile else ""),
+                "date_joined": user.date_joined.isoformat(),
+                "last_login": user.last_login.isoformat() if user.last_login else None,
+                "is_google": not user.has_usable_password(),
+                "faculty": profile.faculty if profile else "",
+                "department": profile.department if profile else "",
+                "level": profile.level if profile else "",
+                "documents_uploaded": user.documents.count(),
+                "quizzes_taken": QuizHistory.objects.filter(user=user).count(),
+                "ai_interactions": InteractionHistory.objects.filter(user=user).count(),
+                "questions_asked": stats.questions_asked if stats else 0,
+                "summaries_generated": stats.summaries_generated if stats else 0,
+                "quizzes_completed": stats.quizzes_completed if stats else 0,
+            })
+
+        return Response({
+            "stats": {
+                "total_users": total_users,
+                "new_users_this_week": new_users_this_week,
+                "total_documents": total_documents,
+                "total_ai_calls": total_ai_calls,
+                "total_quizzes": total_quizzes,
+                "total_summaries": total_summaries,
+            },
+            "signups_by_month": signups_by_month,
+            "ai_by_day": ai_by_day,
+            "feature_usage": feature_usage,
+            "activity_feed": activity_feed,
+            "users": users_data,
         })

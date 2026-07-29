@@ -350,7 +350,7 @@ function DashboardPage() {
         const q = questionInput;
         setQuestionInput("");
         setAiLoading(false);
-        setAiResult(`> **Question:** ${q}\n\n...............................`);
+        setAiResult(` **Question:** ${q}\n\n✨ *Smart AI is searching and thinking...*`);
         let isFirst = true;
         await streamAskQuestion(selectedDoc.id, q, (chunk) => {
           if (isFirst) {
@@ -362,7 +362,7 @@ function DashboardPage() {
         });
         getInteractionHistory().then(setInteractionHistory).catch(console.error);
       } else if (mode === 'mindmap') {
-        setAiResult("...............................");
+        setAiResult("✨ *Smart AI is searching and thinking...*");
         const res = await generateMindMap(selectedDoc.id);
         setAiResult(res.mindmap);
         getInteractionHistory().then(setInteractionHistory).catch(console.error);
@@ -370,7 +370,7 @@ function DashboardPage() {
         const res = await getSmartReadHighlights(selectedDoc.id);
         setSmartHighlights(res.highlights || []);
         if (res.extracted_text) {
-          setSelectedDoc(prev => prev ? { ...prev, extracted_text: res.extracted_text } : prev);
+          setSelectedDoc((prev: any) => prev ? { ...prev, extracted_text: res.extracted_text } : prev);
         }
       }
     } catch (err: any) {
