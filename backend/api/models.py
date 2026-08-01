@@ -52,11 +52,11 @@ class InteractionHistory(models.Model):
 class StudentProfile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='student_profile')
     full_name = models.CharField(max_length=255)
-    matric_number = models.CharField(max_length=100)
+    matric_number = models.CharField(max_length=100, unique=True)
     department = models.CharField(max_length=255)
     faculty = models.CharField(max_length=255)
     level = models.CharField(max_length=50)
-    program = models.CharField(max_length=255)
+    program = models.CharField(max_length=255, blank=True, default='')
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):

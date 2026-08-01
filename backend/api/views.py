@@ -128,8 +128,14 @@ class GoogleLoginView(APIView):
         if not access_token:
             return Response({"error": "No token provided"}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Verify the access token with Google
-        google_response = requests.get(f"https://www.googleapis.com/oauth2/v3/userinfo?access_token={access_token}")
+        # Verify the access token with Google with timeout
+        try:
+            google_response = requests.get(
+                f"https://www.googleapis.com/oauth2/v3/userinfo?access_token={access_token}",
+                timeout=10
+            )
+        except requests.RequestException:
+            return Response({"error": "Failed to connect to Google OAuth service. Please try again."}, status=status.HTTP_504_GATEWAY_TIMEOUT)
         
         if not google_response.ok:
             return Response({"error": "Invalid Google token"}, status=status.HTTP_400_BAD_REQUEST)
@@ -1240,7 +1246,7 @@ class ExtractAdmissionLetterView(APIView):
                 if not text.strip():
                     return Response({"error": "No readable text found in the PDF. Please ensure it is not a scanned image."}, status=400)
 
-                prompt = f"Extract the following information from this admission letter text: Full Name, Matric/Registration Number, Department, Faculty, Level, and Program. Output ONLY a valid JSON object without markdown formatting. Use keys: fullName, matricNumber, department, faculty, level, program. Text: {text[:5000]}"
+                prompt = f"Extract the following information from this admission letter text: Full Name, Matric/Registration Number, Department, Faculty, and Level. Output ONLY a valid JSON object without markdown formatting. Use keys: fullName, matricNumber, department, faculty, level. Text: {text[:5000]}"
                 response = _generate(prompt)
 
                 raw_json = response.text.strip()
@@ -1277,7 +1283,18 @@ class StudentProfileView(APIView):
             if serializer.is_valid():
                 serializer.save(user=request.user)
                 return Response(serializer.data, status=status.HTTP_201_CREATED)
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            
+            # Format first validation error message cleanly for frontend
+            err_msg = "Invalid profile data."
+            if serializer.errors:
+                first_field = next(iter(serializer.errors))
+                err_detail = serializer.errors[first_field]
+                if isinstance(err_detail, list) and len(err_detail) > 0:
+                    err_msg = str(err_detail[0])
+                else:
+                    err_msg = str(err_detail)
+
+            return Response({"error": err_msg, "details": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
             return Response({"error": str(e)}, status=500)
 
