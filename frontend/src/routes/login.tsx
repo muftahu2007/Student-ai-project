@@ -30,8 +30,13 @@ function LoginPage() {
   const handleGoogleSuccess = async (tokenResponse: any) => {
     setLoading(true);
     setError("");
+    const warmupTimer = setTimeout(() => {
+      setError("Server is waking up... Please wait a few seconds.");
+    }, 3500);
+
     try {
       const data = await googleLoginApi(tokenResponse.access_token);
+      clearTimeout(warmupTimer);
       localStorage.setItem("access_token", data.access);
       localStorage.setItem("refresh_token", data.refresh);
       
@@ -40,8 +45,9 @@ function LoginPage() {
       } else {
         router.navigate({ to: "/dashboard" });
       }
-    } catch (err) {
-      setError("Google Sign-In failed. Please try again.");
+    } catch (err: any) {
+      clearTimeout(warmupTimer);
+      setError(err?.message || "Google Sign-In failed. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -56,13 +62,19 @@ function LoginPage() {
     e.preventDefault();
     setLoading(true);
     setError("");
+    const warmupTimer = setTimeout(() => {
+      setError("Connecting to server... Server may take a moment if it was idle.");
+    }, 3500);
+
     try {
       const data = await login({ username: email, password });
+      clearTimeout(warmupTimer);
       localStorage.setItem("access_token", data.access);
       localStorage.setItem("refresh_token", data.refresh);
       router.navigate({ to: "/dashboard" });
-    } catch (err) {
-      setError("Failed to sign in. Please check your credentials.");
+    } catch (err: any) {
+      clearTimeout(warmupTimer);
+      setError(err?.message || "Failed to sign in. Please check your credentials.");
     } finally {
       setLoading(false);
     }

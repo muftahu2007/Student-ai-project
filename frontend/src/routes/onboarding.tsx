@@ -23,7 +23,6 @@ function OnboardingComponent() {
     department: string;
     faculty: string;
     level: string;
-    program: string;
   };
 
   const [extractedData, setExtractedData] = useState<ExtractedData | null>(null);
@@ -70,7 +69,6 @@ function OnboardingComponent() {
         department: data.department || "",
         faculty: data.faculty || "",
         level: data.level || "",
-        program: data.program || "",
       });
     } catch (err: any) {
       setError(err.message || "An error occurred during extraction.");
@@ -100,12 +98,12 @@ function OnboardingComponent() {
           department: extractedData.department,
           faculty: extractedData.faculty,
           level: extractedData.level,
-          program: extractedData.program,
         }),
       });
 
       if (!res.ok) {
-        throw new Error("Failed to create profile.");
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || "Failed to create profile.");
       }
 
       // Successful profile creation, navigate to dashboard
@@ -137,7 +135,7 @@ function OnboardingComponent() {
         <CardContent>
           {error && (
             <div className="mb-4 flex items-center gap-2 rounded-md bg-destructive/15 p-3 text-sm text-destructive">
-              <AlertCircle className="h-4 w-4" />
+              <AlertCircle className="h-4 w-4 shrink-0" />
               <span>{error}</span>
             </div>
           )}
@@ -189,7 +187,7 @@ function OnboardingComponent() {
               </Button>
               
               <div className="text-center text-xs text-muted-foreground">
-                Having trouble with extraction? <button onClick={() => setExtractedData({fullName: "", matricNumber: "", department: "", faculty: "", level: "", program: ""})} className="text-primary hover:underline">Enter manually</button>
+                Having trouble with extraction? <button onClick={() => setExtractedData({fullName: "", matricNumber: "", department: "", faculty: "", level: ""})} className="text-primary hover:underline">Enter manually</button>
               </div>
             </div>
           ) : (
@@ -209,6 +207,7 @@ function OnboardingComponent() {
                   <Input
                     id="matricNumber"
                     value={extractedData.matricNumber}
+                    placeholder="e.g. CST/23/SWE/01052"
                     onChange={(e) => updateField("matricNumber", e.target.value)}
                     required
                   />
@@ -231,21 +230,13 @@ function OnboardingComponent() {
                     required
                   />
                 </div>
-                <div className="space-y-2">
+                <div className="space-y-2 sm:col-span-2">
                   <Label htmlFor="level">Level</Label>
                   <Input
                     id="level"
                     value={extractedData.level}
+                    placeholder="e.g. 100 Level / 200 Level"
                     onChange={(e) => updateField("level", e.target.value)}
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="program">Program</Label>
-                  <Input
-                    id="program"
-                    value={extractedData.program}
-                    onChange={(e) => updateField("program", e.target.value)}
                     required
                   />
                 </div>

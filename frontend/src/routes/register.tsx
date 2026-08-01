@@ -30,10 +30,15 @@ function RegisterPage() {
 
   const handleGoogleSuccess = async (tokenResponse: any) => {
     setIsLoading(true);
+    const warmupTimer = setTimeout(() => {
+      toast.info("Connecting to server... Server may take a few seconds to warm up.");
+    }, 3500);
+
     try {
       const data = await googleLoginApi(tokenResponse.access_token);
-      localStorage.setItem("access_token", data.access);
-      localStorage.setItem("refresh_token", data.refresh);
+      clearTimeout(warmupTimer);
+      if (data.access) localStorage.setItem("access_token", data.access);
+      if (data.refresh) localStorage.setItem("refresh_token", data.refresh);
       toast.success("Signed in with Google!");
       setTimeout(() => {
         if (data.is_new_user) {
@@ -41,9 +46,10 @@ function RegisterPage() {
         } else {
           router.navigate({ to: "/dashboard" });
         }
-      }, 500);
-    } catch (err) {
-      toast.error("Google Sign-In failed. Please try again.");
+      }, 300);
+    } catch (err: any) {
+      clearTimeout(warmupTimer);
+      toast.error(err?.message || "Google Sign-In failed. Please try again.");
     } finally {
       setIsLoading(false);
     }
@@ -68,17 +74,24 @@ function RegisterPage() {
     }
     
     setIsLoading(true);
+    const warmupTimer = setTimeout(() => {
+      toast.info("Waking up server... This may take a few seconds if the server was idle.");
+    }, 3500);
+
     try {
       // Create a simple username from the name or email
       const username = name.replace(/\s+/g, '').toLowerCase() || email.split('@')[0];
       
       await register({ username, email, password });
-      toast.success("Account created successfully! Please sign in.");
+      clearTimeout(warmupTimer);
+
+      toast.success("Account created successfully! Please sign in with your credentials.");
       setTimeout(() => {
         router.navigate({ to: "/login" });
       }, 500);
-    } catch (error) {
-      toast.error("Failed to create account. Email or username may already exist.");
+    } catch (error: any) {
+      clearTimeout(warmupTimer);
+      toast.error(error?.message || "Failed to create account. Email or username may already exist.");
       console.error(error);
     } finally {
       setIsLoading(false);
