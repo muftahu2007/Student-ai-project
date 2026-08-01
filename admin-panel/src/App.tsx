@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import './index.css';
-import { isLoggedIn, getAdminStats } from './api';
+import { isLoggedIn, getAdminStats, logout, setUnauthorizedListener } from './api';
 import LoginPage from './pages/LoginPage';
 import AdminLayout from './components/AdminLayout';
 import OverviewPage from './pages/OverviewPage';
@@ -9,26 +9,103 @@ import AIUsagePage from './pages/AIUsagePage';
 import DocumentsPage from './pages/DocumentsPage';
 
 type Page = 'overview' | 'users' | 'ai' | 'documents';
+const INACTIVITY_TIMEOUT_MS = 15 * 60 * 1000; // 15 minutes
 
 export default function App() {
-  const [loggedIn, setLoggedIn] = useState(isLoggedIn());
+  const [loggedIn, setLoggedIn] = useState(() => {
+    if (!isLoggedIn()) return false;
+    const last = parseInt(localStorage.getItem('admin_last_activity') || '0', 10);
+    if (last > 0 && Date.now() - last > INACTIVITY_TIMEOUT_MS) {
+      logout();
+      return false;
+    }
+    return true;
+  });
+
+  const [sessionNotice, setSessionNotice] = useState<string>(() => {
+    if (isLoggedIn()) {
+      const last = parseInt(localStorage.getItem('admin_last_activity') || '0', 10);
+      if (last > 0 && Date.now() - last > INACTIVITY_TIMEOUT_MS) {
+        return "Session timed out due to inactivity (15 minutes). Please sign in again.";
+      }
+    }
+    return "";
+  });
+
   const [currentPage, setCurrentPage] = useState<Page>('overview');
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
+  const handleLogout = useCallback((noticeMsg?: string) => {
+    logout();
+    setLoggedIn(false);
+    if (noticeMsg) {
+      setSessionNotice(noticeMsg);
+    }
+  }, []);
+
+  // Set up 401 / session expired listener
+  useEffect(() => {
+    setUnauthorizedListener(() => {
+      handleLogout("Session expired or invalid. Please sign in again.");
+    });
+    return () => setUnauthorizedListener(null);
+  }, [handleLogout]);
+
+  // Activity tracking and inactivity timeout
+  useEffect(() => {
+    if (!loggedIn) return;
+
+    const updateActivity = () => {
+      localStorage.setItem('admin_last_activity', Date.now().toString());
+    };
+
+    // Track user interactions
+    const events = ['mousemove', 'mousedown', 'keydown', 'scroll', 'touchstart'];
+    events.forEach(evt => window.addEventListener(evt, updateActivity, { passive: true }));
+
+    // Check for inactivity every 10 seconds
+    const interval = setInterval(() => {
+      const last = parseInt(localStorage.getItem('admin_last_activity') || '0', 10);
+      if (last > 0 && Date.now() - last > INACTIVITY_TIMEOUT_MS) {
+        handleLogout("Session timed out due to inactivity (15 minutes). Please sign in again.");
+      }
+    }, 10000);
+
+    return () => {
+      events.forEach(evt => window.removeEventListener(evt, updateActivity));
+      clearInterval(interval);
+    };
+  }, [loggedIn, handleLogout]);
+
+  // Fetch admin stats
   useEffect(() => {
     if (!loggedIn) return;
     setLoading(true);
     setError('');
     getAdminStats()
       .then(setData)
-      .catch(err => setError(err.message || 'Failed to load data'))
+      .catch(err => {
+        if (err.message && err.message.includes('Session expired')) {
+          handleLogout("Session expired. Please sign in again.");
+        } else {
+          setError(err.message || 'Failed to load data');
+        }
+      })
       .finally(() => setLoading(false));
-  }, [loggedIn]);
+  }, [loggedIn, handleLogout]);
 
   if (!loggedIn) {
-    return <LoginPage onLogin={() => setLoggedIn(true)} />;
+    return (
+      <LoginPage 
+        notice={sessionNotice} 
+        onLogin={() => {
+          setSessionNotice('');
+          setLoggedIn(true);
+        }} 
+      />
+    );
   }
 
   function renderPage() {
@@ -55,7 +132,7 @@ export default function App() {
     <AdminLayout
       currentPage={currentPage}
       onNavigate={setCurrentPage}
-      onLogout={() => setLoggedIn(false)}
+      onLogout={() => handleLogout()}
     >
       {renderPage()}
     </AdminLayout>

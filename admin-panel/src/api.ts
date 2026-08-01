@@ -3,6 +3,12 @@ const API_BASE = import.meta.env.VITE_API_URL || 'https://student-ai-project.onr
 let accessToken = localStorage.getItem('admin_access_token') || '';
 let refreshToken = localStorage.getItem('admin_refresh_token') || '';
 
+let unauthorizedListener: (() => void) | null = null;
+
+export function setUnauthorizedListener(listener: (() => void) | null) {
+  unauthorizedListener = listener;
+}
+
 export function isLoggedIn() {
   return !!accessToken;
 }
@@ -12,6 +18,10 @@ export function logout() {
   refreshToken = '';
   localStorage.removeItem('admin_access_token');
   localStorage.removeItem('admin_refresh_token');
+  localStorage.removeItem('admin_last_activity');
+  if (unauthorizedListener) {
+    unauthorizedListener();
+  }
 }
 
 async function refreshAccess(): Promise<boolean> {
@@ -36,6 +46,14 @@ async function refreshAccess(): Promise<boolean> {
 }
 
 async function apiFetch(path: string): Promise<any> {
+  if (!accessToken) {
+    const refreshed = await refreshAccess();
+    if (!refreshed) {
+      logout();
+      throw new Error('Session expired');
+    }
+  }
+
   let res = await fetch(`${API_BASE}${path}`, {
     headers: {
       'Content-Type': 'application/json',
@@ -45,7 +63,10 @@ async function apiFetch(path: string): Promise<any> {
 
   if (res.status === 401) {
     const refreshed = await refreshAccess();
-    if (!refreshed) { logout(); throw new Error('Session expired'); }
+    if (!refreshed) { 
+      logout(); 
+      throw new Error('Session expired'); 
+    }
     res = await fetch(`${API_BASE}${path}`, {
       headers: {
         'Content-Type': 'application/json',
@@ -73,6 +94,7 @@ export async function adminLogin(username: string, password: string) {
   refreshToken = data.refresh;
   localStorage.setItem('admin_access_token', accessToken);
   localStorage.setItem('admin_refresh_token', refreshToken);
+  localStorage.setItem('admin_last_activity', Date.now().toString());
   return data;
 }
 

@@ -1,9 +1,12 @@
 import { useState } from 'react';
 import { adminLogin, resetAdminPassword } from '../api';
 
-interface Props { onLogin: () => void; }
+interface Props { 
+  onLogin: () => void; 
+  notice?: string;
+}
 
-export default function LoginPage({ onLogin }: Props) {
+export default function LoginPage({ onLogin, notice }: Props) {
   const [isForgot, setIsForgot] = useState(false);
   
   // Login State
@@ -109,6 +112,21 @@ export default function LoginPage({ onLogin }: Props) {
           <h1>BUK Scholar AI</h1>
           <p>Sign in with your superuser account</p>
         </div>
+        {notice && (
+          <div style={{
+            background: 'var(--warning-light, rgba(234, 179, 8, 0.15))',
+            color: 'var(--warning, #d97706)',
+            border: '1px solid var(--warning-border, rgba(234, 179, 8, 0.3))',
+            borderRadius: '8px',
+            padding: '10px 14px',
+            fontSize: '13px',
+            fontWeight: 500,
+            marginBottom: '16px',
+            textAlign: 'center'
+          }}>
+            ℹ️ {notice}
+          </div>
+        )}
         <form onSubmit={handleLogin}>
           {error && <div className="error-msg">{error}</div>}
           <div className="form-group">
