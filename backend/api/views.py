@@ -1,5 +1,6 @@
 import fitz  # PyMuPDF
 import base64
+import time
 
 from django.conf import settings
 from rest_framework import generics, status
@@ -55,49 +56,59 @@ def _generate(prompt, stream=False, system_prompt=None, history=None):
     models = [
         "groq/llama-3.3-70b-versatile",                          # Primary: Groq 70B
         "gemini/gemini-2.0-flash",                                # Google Gemini 2.0 Flash
-        "gemini/gemini-2.0-flash-lite",                           # Google Gemini 2.0 Flash Lite
         "groq/llama-3.1-8b-instant",                              # Groq 8B Instant
-        "groq/gemma2-9b-it",                                      # Groq Gemma 2 9B
+        "groq/mixtral-8x7b-32768",                                # Groq Mixtral
+        "groq/deepseek-r1-distill-llama-70b",                     # Groq DeepSeek R1 Distill
         "openrouter/openrouter/free",                             # OpenRouter auto-fallback (routes to any live free model)
         "openrouter/google/gemma-4-31b-it:free",                  # OpenRouter Gemma 4 31B
         "openrouter/openai/gpt-oss-20b:free",                     # OpenRouter GPT OSS 20B
     ]
 
     last_err = None
-    for model in models:
-        try:
-            print(f"[AI] Trying model: {model}", flush=True)
-            result = call_completion(
-                model_id=model,
-                messages=messages,
-                stream=stream
-            )
+    # Try models with rate-limit recovery
+    for attempt in range(2): # Up to 2 passes if initial attempt hit rate limits
+        for model in models:
+            try:
+                print(f"[AI] Trying model: {model}", flush=True)
+                result = call_completion(
+                    model_id=model,
+                    messages=messages,
+                    stream=stream
+                )
 
-            if stream:
-                def stream_adapter(gen):
-                    for text_chunk in gen:
-                        class MockChunk:
-                            pass
-                        mc = MockChunk()
-                        mc.text = text_chunk
-                        yield mc
-                return stream_adapter(result)
-            else:
-                class MockResponse:
-                    pass
-                mr = MockResponse()
-                mr.text = result
-                return mr
+                if stream:
+                    def stream_adapter(gen):
+                        for text_chunk in gen:
+                            class MockChunk:
+                                pass
+                            mc = MockChunk()
+                            mc.text = text_chunk
+                            yield mc
+                    return stream_adapter(result)
+                else:
+                    class MockResponse:
+                        pass
+                    mr = MockResponse()
+                    mr.text = result
+                    return mr
 
-        except Exception as e:
-            err_str = str(e)
-            print(f"[AI] FAILED {model}: {err_str[:200]}", flush=True)
-            # Skip immediately for auth errors — retrying won't help
-            if 'AuthenticationError' in err_str or 'invalid_api_key' in err_str.lower() or '401' in err_str:
-                print(f"[AI] Auth error for {model} — check your API key in .env", flush=True)
+            except Exception as e:
+                err_str = str(e)
+                print(f"[AI] FAILED {model}: {err_str[:200]}", flush=True)
                 last_err = e
-                continue
-            last_err = e
+                # Skip immediately for auth errors — retrying won't help
+                if 'AuthenticationError' in err_str or 'invalid_api_key' in err_str.lower() or '401' in err_str:
+                    print(f"[AI] Auth error for {model} — check your API key in .env", flush=True)
+                    continue
+
+                # If rate limited (429), pause briefly so provider quotas reset
+                if '429' in err_str or 'too many requests' in err_str.lower():
+                    time.sleep(1.5)
+
+        # If all models hit 429 rate limit on first pass, pause 3s before retry pass
+        if attempt == 0:
+            print("[AI] Rate limit hit across providers. Pausing 3s before retry...", flush=True)
+            time.sleep(3.0)
 
     print(f"[AI] All models exhausted. Last error: {last_err}", flush=True)
     raise last_err
