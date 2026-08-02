@@ -26,12 +26,17 @@ class DocumentSerializer(serializers.ModelSerializer):
         read_only_fields = ('id', 'uploaded_at', 'pages', 'extracted_text')
 
 class StudentProfileSerializer(serializers.ModelSerializer):
+    # matric_number is optional — users entering manually may not have it
+    matric_number = serializers.CharField(required=False, allow_blank=True, default='')
+
     class Meta:
         model = StudentProfile
         fields = ('full_name', 'matric_number', 'department', 'faculty', 'level')
 
     def validate_matric_number(self, value):
         val = value.strip().upper()
+        if not val:
+            return val  # blank is allowed
         instance = getattr(self, 'instance', None)
         qs = StudentProfile.objects.filter(matric_number__iexact=val)
         if instance:
@@ -39,6 +44,22 @@ class StudentProfileSerializer(serializers.ModelSerializer):
         if qs.exists():
             raise serializers.ValidationError("A profile with this Matriculation Number already exists.")
         return val
+
+    def create(self, validated_data):
+        user = validated_data.pop('user', None)
+        profile = StudentProfile(**validated_data)
+        if user:
+            profile.user = user
+        profile.save()
+        return profile
+
+    def update(self, instance, validated_data):
+        # Ignore 'user' if accidentally passed during update
+        validated_data.pop('user', None)
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        instance.save()
+        return instance
 
 from .models import StudySchedule
 class StudyScheduleSerializer(serializers.ModelSerializer):
