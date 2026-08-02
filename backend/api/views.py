@@ -103,12 +103,12 @@ def _generate(prompt, stream=False, system_prompt=None, history=None):
 
                 # If rate limited (429), pause briefly so provider quotas reset
                 if '429' in err_str or 'too many requests' in err_str.lower():
-                    time.sleep(1.5)
+                    time.sleep(0.5)
 
-        # If all models hit 429 rate limit on first pass, pause 3s before retry pass
+        # If all models hit 429 rate limit on first pass, pause 1s before retry pass
         if attempt == 0:
-            print("[AI] Rate limit hit across providers. Pausing 3s before retry...", flush=True)
-            time.sleep(3.0)
+            print("[AI] Rate limit hit across providers. Pausing 1s before retry...", flush=True)
+            time.sleep(1.0)
 
     print(f"[AI] All models exhausted. Last error: {last_err}", flush=True)
     raise last_err
