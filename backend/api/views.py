@@ -53,13 +53,14 @@ def _generate(prompt, stream=False, system_prompt=None, history=None):
     messages.append({"role": "user", "content": prompt})
 
     models = [
-        "groq/llama-3.3-70b-versatile",                          # Primary: Groq, fast & capable
-        "gemini/gemini-2.0-flash",                                # Strong fallback: Google Gemini
-        "gemini/gemini-1.5-flash",                                # Gemini 1.5 (different rate limit pool)
-        "groq/llama-3.1-8b-instant",                              # Fast Groq fallback
-        "openrouter/meta-llama/llama-4-scout:free",               # OpenRouter: Llama 4 Scout (current free)
-        "openrouter/mistralai/mistral-7b-instruct:free",          # OpenRouter: Mistral (reliable free)
-        "openrouter/qwen/qwen-2.5-7b-instruct:free",              # OpenRouter: Qwen fallback
+        "groq/llama-3.3-70b-versatile",                          # Primary: Groq 70B
+        "gemini/gemini-2.0-flash",                                # Google Gemini 2.0 Flash
+        "gemini/gemini-2.0-flash-lite",                           # Google Gemini 2.0 Flash Lite
+        "groq/llama-3.1-8b-instant",                              # Groq 8B Instant
+        "groq/gemma2-9b-it",                                      # Groq Gemma 2 9B
+        "openrouter/openrouter/free",                             # OpenRouter auto-fallback (routes to any live free model)
+        "openrouter/google/gemma-4-31b-it:free",                  # OpenRouter Gemma 4 31B
+        "openrouter/openai/gpt-oss-20b:free",                     # OpenRouter GPT OSS 20B
     ]
 
     last_err = None
