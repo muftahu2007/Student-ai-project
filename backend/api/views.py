@@ -1275,15 +1275,32 @@ class StudentProfileView(APIView):
     def post(self, request):
         try:
             if hasattr(request.user, 'student_profile'):
+                # User already has a profile — update it
                 profile = request.user.student_profile
                 serializer = StudentProfileSerializer(profile, data=request.data, partial=True)
             else:
-                serializer = StudentProfileSerializer(data=request.data)
+                # Check if a profile with this matric already exists under a DIFFERENT user.
+                # This can happen after the duplicate-cleanup migration where the wrong user
+                # ended up owning the profile. We safely reassign (claim) it to the
+                # correct logged-in user, since matric numbers are real-world unique identifiers.
+                matric = request.data.get('matric_number', '').strip().upper()
+                orphaned_profile = None
+                if matric:
+                    orphaned_profile = StudentProfile.objects.filter(
+                        matric_number__iexact=matric
+                    ).exclude(user=request.user).first()
+
+                if orphaned_profile:
+                    # Remove the profile from the old user and reassign to current user
+                    orphaned_profile.user = request.user
+                    serializer = StudentProfileSerializer(orphaned_profile, data=request.data, partial=True)
+                else:
+                    serializer = StudentProfileSerializer(data=request.data)
 
             if serializer.is_valid():
                 serializer.save(user=request.user)
                 return Response(serializer.data, status=status.HTTP_201_CREATED)
-            
+
             # Format first validation error message cleanly for frontend
             err_msg = "Invalid profile data."
             if serializer.errors:
