@@ -21,7 +21,7 @@ import requests
 # Provider-specific callers
 # ---------------------------------------------------------------------------
 
-def _call_openai_compatible(url, api_key, model, messages, stream, timeout=120):
+def _call_openai_compatible(url, api_key, model, messages, stream, timeout=25):
     """
     Call an OpenAI-compatible chat completion endpoint (Groq, OpenRouter).
     Returns text (str) or a generator of text chunks if stream=True.
@@ -67,7 +67,7 @@ def _call_openai_compatible(url, api_key, model, messages, stream, timeout=120):
     return data["choices"][0]["message"]["content"]
 
 
-def _call_gemini(api_key, model_name, messages, stream, timeout=120):
+def _call_gemini(api_key, model_name, messages, stream, timeout=25):
     """
     Call Google Gemini API directly via the REST endpoint.
     Converts OpenAI-style messages to Gemini's content format.
@@ -161,7 +161,7 @@ GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
 OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 
 
-def call_completion(model_id: str, messages: list, stream: bool = False):
+def call_completion(model_id: str, messages: list, stream: bool = False, timeout: int = 25):
     """
     Route a chat completion request to the correct provider based on the
     model_id prefix (groq/, openrouter/, gemini/).
@@ -174,19 +174,19 @@ def call_completion(model_id: str, messages: list, stream: bool = False):
         model_name = model_id[len("groq/"):]
         api_key = os.environ.get("GROQ_API_KEY")
         return _call_openai_compatible(GROQ_URL, api_key, model_name,
-                                       messages, stream)
+                                       messages, stream, timeout=timeout)
 
     elif model_id.startswith("openrouter/"):
         model_name = model_id[len("openrouter/"):]
         api_key = (os.environ.get("OPENROUTER_API_KEY")
                    or os.environ.get("OPEN_ROUTER_API_KEY"))
         return _call_openai_compatible(OPENROUTER_URL, api_key, model_name,
-                                       messages, stream)
+                                       messages, stream, timeout=timeout)
 
     elif model_id.startswith("gemini/"):
         model_name = model_id[len("gemini/"):]
         api_key = os.environ.get("GEMINI_API_KEY")
-        return _call_gemini(api_key, model_name, messages, stream)
+        return _call_gemini(api_key, model_name, messages, stream, timeout=timeout)
 
     else:
         raise ValueError(f"Unknown provider prefix in model: {model_id}")
