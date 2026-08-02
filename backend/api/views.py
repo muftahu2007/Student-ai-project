@@ -664,44 +664,35 @@ class QuizView(APIView):
                 return []  # Could not extract anything
 
             all_questions = []
-            topics_covered = set()
-            remaining_questions = num_questions
+            from concurrent.futures import ThreadPoolExecutor, as_completed
 
-            # Use smaller batches: smaller models handle 10 questions much more reliably than 20
             CHUNK_SIZE = 10
+            batch_prompts = []
+            temp_rem = num_questions
+            batch_index = 0
+            while temp_rem > 0:
+                c_size = min(temp_rem, CHUNK_SIZE)
+                prompt = _get_prompt(c_size, f"Batch {batch_index+1}")
+                batch_prompts.append(prompt)
+                temp_rem -= c_size
+                batch_index += 1
 
-            while remaining_questions > 0:
-                chunk_size = min(remaining_questions, CHUNK_SIZE)
-                # Pass the last 10 topics to avoid repeating them in the next batch
-                prompt = _get_prompt(chunk_size, ", ".join(list(topics_covered)[-10:]))
+            def _fetch_batch(p):
+                try:
+                    response = _generate(p)
+                    return _extract_json_array(response.text)
+                except Exception as rate_err:
+                    print(f"[QuizBatch Error]: {rate_err}", flush=True)
+                    return []
 
-                chunk_json = "[]"
-                # Auto-retry up to 3 times on rate limit
-                for attempt in range(3):
-                    try:
-                        response = _generate(prompt)
-                        chunk_json = response.text
-                        break
-                    except Exception as rate_err:
-                        if ('429' in str(rate_err) or 'quota' in str(rate_err).lower()) and attempt < 2:
-                            print(f"Rate limited, waiting 20s before retry (attempt {attempt+1}/3)...")
-                            time.sleep(20)
-                            continue
-                        raise rate_err
+            with ThreadPoolExecutor(max_workers=min(len(batch_prompts), 4)) as executor:
+                futures = [executor.submit(_fetch_batch, p) for p in batch_prompts]
+                for future in as_completed(futures):
+                    batch_res = future.result()
+                    if batch_res:
+                        all_questions.extend(batch_res)
 
-                parsed_chunk = _extract_json_array(chunk_json)
-                if parsed_chunk:
-                    all_questions.extend(parsed_chunk)
-                    for q in parsed_chunk:
-                        if q.get('topic'):
-                            topics_covered.add(q.get('topic'))
-                    print(f"Quiz batch OK: got {len(parsed_chunk)} questions (total: {len(all_questions)})")
-                else:
-                    print(f"Failed to parse quiz chunk. Raw response snippet: {chunk_json[:300]}")
-
-                remaining_questions -= chunk_size
-                if remaining_questions > 0:
-                    time.sleep(2)
+            print(f"[Parallel Quiz OK] Generated {len(all_questions)} questions across {len(batch_prompts)} parallel batches", flush=True)
 
             stats, _ = UserStats.objects.get_or_create(user=request.user)
             stats.quizzes_completed += 1
@@ -1049,6 +1040,7 @@ class MultiDocumentQuizView(APIView):
         doc_titles = [d.title for d in valid_docs]
         topics_covered = set()
 
+        batch_tasks = []
         try:
             for i, doc in enumerate(valid_docs):
                 target_q_for_this_doc = base_q_per_doc + (1 if i < extra_q else 0)
@@ -1057,11 +1049,10 @@ class MultiDocumentQuizView(APIView):
                     
                 text_chunk = doc.extracted_text[:12000] # Safe single doc size
                 
-                def _get_prompt(chunk_size, doc_title, chunk_text, existing_topics=""):
-                    avoid_str = f" Cover topics DIFFERENT from: {existing_topics}." if existing_topics else ""
+                def _get_prompt(chunk_size, doc_title, chunk_text):
                     if quiz_type == "objective":
                         return (
-                            f"You are an expert academic tutor. Create a multiple choice quiz ({chunk_size} questions) based on the document '{doc_title}'.{context_str}{avoid_str} "
+                            f"You are an expert academic tutor. Create a multiple choice quiz ({chunk_size} questions) based on the document '{doc_title}'.{context_str} "
                             f"CRITICAL: Each question must clearly relate to the document content. Every question must test a DIFFERENT concept. "
                             f"Output ONLY a valid JSON array. Each object: 'question' (string), 'topic' (string, 1-3 words), "
                             f"'source_doc' (string, must be exactly '{doc_title}'), "
@@ -1070,7 +1061,7 @@ class MultiDocumentQuizView(APIView):
                         )
                     else:
                         return (
-                            f"You are an expert academic tutor. Create a theory/essay quiz ({chunk_size} questions) based on the document '{doc_title}'.{context_str}{avoid_str} "
+                            f"You are an expert academic tutor. Create a theory/essay quiz ({chunk_size} questions) based on the document '{doc_title}'.{context_str} "
                             f"CRITICAL: Every question must test a DIFFERENT concept. "
                             f"Output ONLY a valid JSON array. Each object: 'question' (string), 'topic' (string, 1-3 words), "
                             f"'source_doc' (string, must be exactly '{doc_title}'), "
@@ -1083,30 +1074,27 @@ class MultiDocumentQuizView(APIView):
                 
                 while remaining_for_doc > 0:
                     chunk_size = min(remaining_for_doc, CHUNK_SIZE)
-                    prompt = _get_prompt(chunk_size, doc.title, text_chunk, ", ".join(list(topics_covered)[-10:]))
-
-                    chunk_json = "[]"
-                    for attempt in range(3):
-                        try:
-                            response = _generate(prompt)
-                            chunk_json = response.text
-                            break
-                        except Exception as rate_err:
-                            if ('429' in str(rate_err) or 'quota' in str(rate_err).lower()) and attempt < 2:
-                                time.sleep(35) # Wait 35s to respect strict limits
-                                continue
-                            raise rate_err
-
-                    parsed_chunk = _extract_json_array(chunk_json)
-                    if parsed_chunk:
-                        all_questions.extend(parsed_chunk)
-                        for q in parsed_chunk:
-                            if q.get('topic'):
-                                topics_covered.add(q.get('topic'))
-
+                    prompt = _get_prompt(chunk_size, doc.title, text_chunk)
+                    batch_tasks.append(prompt)
                     remaining_for_doc -= chunk_size
-                    if remaining_for_doc > 0:
-                        time.sleep(3)
+
+            def _fetch_multi_batch(p):
+                try:
+                    resp = _generate(p)
+                    return _extract_json_array(resp.text)
+                except Exception as ex:
+                    print(f"[MultiQuizBatch Error]: {ex}", flush=True)
+                    return []
+
+            from concurrent.futures import ThreadPoolExecutor, as_completed
+            with ThreadPoolExecutor(max_workers=min(len(batch_tasks), 4)) as executor:
+                futures = [executor.submit(_fetch_multi_batch, p) for p in batch_tasks]
+                for future in as_completed(futures):
+                    batch_res = future.result()
+                    if batch_res:
+                        all_questions.extend(batch_res)
+
+            print(f"[MultiQuiz Parallel OK] Total {len(all_questions)} questions generated across {len(batch_tasks)} parallel batches", flush=True)
                         
         except Exception as e:
             err_str = str(e)
