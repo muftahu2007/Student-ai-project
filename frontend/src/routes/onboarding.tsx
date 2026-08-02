@@ -103,7 +103,14 @@ function OnboardingComponent() {
 
       if (!res.ok) {
         const errData = await res.json().catch(() => ({}));
-        throw new Error(errData.error || "Failed to create profile.");
+        console.error("[Onboarding] Profile creation failed:", res.status, errData);
+        // errData.error is the clean message, errData.details has field-level errors
+        const detailMsg = errData.details
+          ? Object.entries(errData.details)
+              .map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(", ") : v}`)
+              .join(" | ")
+          : null;
+        throw new Error(errData.error || detailMsg || `Server error ${res.status}: Failed to create profile.`);
       }
 
       // Successful profile creation, navigate to dashboard
