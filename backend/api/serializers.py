@@ -26,17 +26,12 @@ class DocumentSerializer(serializers.ModelSerializer):
         read_only_fields = ('id', 'uploaded_at', 'pages', 'extracted_text')
 
 class StudentProfileSerializer(serializers.ModelSerializer):
-    # matric_number is optional — users entering manually may not have it
-    matric_number = serializers.CharField(required=False, allow_blank=True, default='')
-
     class Meta:
         model = StudentProfile
         fields = ('full_name', 'matric_number', 'department', 'faculty', 'level')
 
     def validate_matric_number(self, value):
         val = value.strip().upper()
-        if not val:
-            return val  # blank is allowed
         instance = getattr(self, 'instance', None)
         qs = StudentProfile.objects.filter(matric_number__iexact=val)
         if instance:
