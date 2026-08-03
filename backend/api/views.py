@@ -9,7 +9,7 @@ from rest_framework.views import APIView
 from django.http import StreamingHttpResponse
 from rest_framework.permissions import IsAuthenticated, AllowAny, IsAdminUser
 from django.contrib.auth.models import User
-from .models import Document, UserStats, QuizHistory, StudentProfile, InteractionHistory
+from .models import Document, UserStats, QuizHistory, StudentProfile, InteractionHistory, QuizCache
 from .serializers import UserSerializer, DocumentSerializer, StudentProfileSerializer
 from rest_framework_simplejwt.tokens import RefreshToken
 import datetime
@@ -203,16 +203,57 @@ class DocumentListView(generics.ListCreateAPIView):
         doc = serializer.save(user=self.request.user)
 
         def _process_document(doc_id, file_path):
-            """Run in background: extract text (with OCR fallback) + store in ChromaDB."""
+            """Run in background: extract text (with OCR fallback) + store in ChromaDB + pre-cache quiz."""
             from .rag_utils import process_and_store_document
-            from .models import Document as Doc
+            from .models import Document as Doc, QuizCache as QC
+            from concurrent.futures import ThreadPoolExecutor, as_completed
+            import json, re
             try:
                 doc_obj = Doc.objects.get(id=doc_id)
-                # Extract text using our centralized logic (with OCR fallback)
+                # Step 1: Extract text using our centralized logic (with OCR fallback)
                 _ensure_extracted_text(doc_obj)
 
-                # Step 3: Store in ChromaDB for RAG
+                # Step 2: Store in ChromaDB for RAG
                 process_and_store_document(doc_id, file_path)
+
+                # Step 3: Pre-generate and cache a 20-question objective quiz silently
+                if doc_obj.extracted_text and doc_obj.extracted_text.strip():
+                    print(f"[QuizCache] Starting pre-generation for doc {doc_id}...", flush=True)
+                    doc_text = doc_obj.extracted_text[:15000]
+
+                    def _make_batch_prompt(batch_num):
+                        return (
+                            f"You are an expert academic tutor. Create a multiple choice quiz (10 questions) based on the document '{doc_obj.title}'. "
+                            f"Batch {batch_num}: Cover a different set of unique topics. "
+                            f"CRITICAL: Output ONLY a valid JSON array. Each object must have: "
+                            f"'question' (string), 'topic' (string, 1-3 words), "
+                            f"'options' (array of 4 strings), 'correct_answer' (integer 0-3), 'explanation' (string).\n\n"
+                            f"Document Content:\n{doc_text}"
+                        )
+
+                    def _fetch(prompt):
+                        try:
+                            resp = _generate(prompt)
+                            text = resp.text.strip()
+                            text = re.sub(r'^```(?:json)?\s*', '', text, flags=re.MULTILINE)
+                            text = re.sub(r'```\s*$', '', text, flags=re.MULTILINE)
+                            return json.loads(text) if isinstance(json.loads(text), list) else []
+                        except Exception:
+                            return []
+
+                    with ThreadPoolExecutor(max_workers=2) as pool:
+                        f1, f2 = pool.submit(_fetch, _make_batch_prompt(1)), pool.submit(_fetch, _make_batch_prompt(2))
+                        all_q = []
+                        for f in as_completed([f1, f2]):
+                            all_q.extend(f.result())
+
+                    if all_q:
+                        QC.objects.update_or_create(
+                            document=doc_obj,
+                            quiz_type='objective',
+                            defaults={'questions': all_q}
+                        )
+                        print(f"[QuizCache] Cached {len(all_q)} questions for doc {doc_id}", flush=True)
             except Exception as e:
                 print(f"Doc {doc_id}: Background processing error: {e}")
 
@@ -235,6 +276,25 @@ class DocumentDetailView(generics.DestroyAPIView):
     def perform_destroy(self, instance):
         # We can also clean up ChromaDB here if needed, but for now we just delete the DB object.
         instance.delete()
+
+
+class QuizCacheStatusView(APIView):
+    """Check whether a pre-generated quiz is ready for a given document."""
+    permission_classes = (IsAuthenticated,)
+
+    def get(self, request, doc_id):
+        try:
+            doc = Document.objects.get(id=doc_id, user=request.user)
+            cache = QuizCache.objects.filter(document=doc, quiz_type='objective').first()
+            if cache and cache.questions:
+                return Response({
+                    "ready": True,
+                    "question_count": len(cache.questions),
+                    "generated_at": cache.generated_at.isoformat(),
+                })
+            return Response({"ready": False, "question_count": 0})
+        except Document.DoesNotExist:
+            return Response({"ready": False, "question_count": 0})
 
 
 
@@ -600,6 +660,68 @@ class QuizView(APIView):
 
             quiz_type = request.data.get("quiz_type", "objective")
             num_questions = max(1, min(int(request.data.get("num_questions", 5)), 100))
+            force_regenerate = request.data.get("force_regenerate", False)
+
+            # ── CACHE-FIRST: return instantly if we have pre-generated questions ──
+            if quiz_type == "objective" and not force_regenerate:
+                try:
+                    cache_entry = QuizCache.objects.get(document=doc, quiz_type="objective")
+                    if cache_entry.questions and len(cache_entry.questions) >= min(num_questions, 10):
+                        questions = cache_entry.questions[:num_questions]
+                        print(f"[QuizCache HIT] Served {len(questions)} cached questions for doc {doc_id} instantly", flush=True)
+
+                        # Update stats
+                        stats, _ = UserStats.objects.get_or_create(user=request.user)
+                        stats.quizzes_completed += 1
+                        stats.save()
+
+                        # Refresh cache in background for next time
+                        import threading
+                        def _refresh_cache(d_id):
+                            from .models import Document as D, QuizCache as QC
+                            import json, re
+                            from concurrent.futures import ThreadPoolExecutor, as_completed as asc
+                            try:
+                                d = D.objects.get(id=d_id)
+                                doc_text = d.extracted_text[:15000]
+
+                                def _p(n):
+                                    return (
+                                        f"You are an expert academic tutor. Create a multiple choice quiz (10 questions) based on '{d.title}'. "
+                                        f"Batch {n}: Cover a different unique set of topics. "
+                                        f"Output ONLY a valid JSON array. Each object: 'question', 'topic', 'options' (4 strings), 'correct_answer' (0-3 int), 'explanation'.\n\n"
+                                        f"Document Content:\n{doc_text}"
+                                    )
+
+                                def _f(prompt):
+                                    try:
+                                        r = _generate(prompt)
+                                        t = r.text.strip()
+                                        t = re.sub(r'^```(?:json)?\s*', '', t, flags=re.MULTILINE)
+                                        t = re.sub(r'```\s*$', '', t, flags=re.MULTILINE)
+                                        parsed = json.loads(t)
+                                        return parsed if isinstance(parsed, list) else []
+                                    except Exception:
+                                        return []
+
+                                with ThreadPoolExecutor(max_workers=2) as pool:
+                                    futures = [pool.submit(_f, _p(1)), pool.submit(_f, _p(2))]
+                                    new_q = []
+                                    for fut in asc(futures):
+                                        new_q.extend(fut.result())
+
+                                if new_q:
+                                    QC.objects.update_or_create(document=d, quiz_type='objective', defaults={'questions': new_q})
+                                    print(f"[QuizCache REFRESH] {len(new_q)} questions refreshed for doc {d_id}", flush=True)
+                            except Exception as ex:
+                                print(f"[QuizCache REFRESH ERROR] {ex}", flush=True)
+
+                        t = threading.Thread(target=_refresh_cache, args=(doc.id,), daemon=True)
+                        t.start()
+
+                        return Response({"quiz": json.dumps(questions), "cache_hit": True})
+                except QuizCache.DoesNotExist:
+                    pass  # Cache miss → fall through to live generation
 
             # Context injection
             context_str = ""

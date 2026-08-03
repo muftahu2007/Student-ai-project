@@ -187,12 +187,18 @@ export async function generateStudyGuide(docId: number) {
   return res.json();
 }
 
-export async function generateQuiz(docId: number, quizType: string = 'objective', numQuestions: number = 5) {
+export async function generateQuiz(docId: number, quizType: string = 'objective', numQuestions: number = 5, forceRegenerate = false) {
   const res = await fetchWithAuth(`${API_BASE_URL}/documents/${docId}/quiz/`, {
     method: 'POST',
-    body: JSON.stringify({ quiz_type: quizType, num_questions: numQuestions }),
+    body: JSON.stringify({ quiz_type: quizType, num_questions: numQuestions, force_regenerate: forceRegenerate }),
   });
   if (!res.ok) throw new Error('Failed to generate quiz');
+  return res.json();
+}
+
+export async function getQuizCacheStatus(docId: number): Promise<{ ready: boolean; question_count: number }> {
+  const res = await fetchWithAuth(`${API_BASE_URL}/documents/${docId}/quiz-cache-status/`, {});
+  if (!res.ok) return { ready: false, question_count: 0 };
   return res.json();
 }
 

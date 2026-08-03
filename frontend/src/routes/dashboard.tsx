@@ -12,7 +12,7 @@ import {
 import logo from "@/assets/buk-scholar-logo.png";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { getDocuments, getUserProfile, uploadDocument, summarizeDocument, askQuestion, generateStudyGuide, generateQuiz, saveQuizResult, getQuizHistory, gradeTheoryQuiz, getInteractionHistory, deleteInteraction, streamSummarize, streamStudyGuide, streamAskQuestion, explainSimpler, generateFlashcards, getSchedules, createSchedule, deleteSchedule, downloadPdf, generateMindMap, generateMultiQuiz, analyzeQuizPerformance, deleteDocument, getAnalytics, getSmartReadHighlights } from "@/lib/api";
+import { getDocuments, getUserProfile, uploadDocument, summarizeDocument, askQuestion, generateStudyGuide, generateQuiz, saveQuizResult, getQuizHistory, gradeTheoryQuiz, getInteractionHistory, deleteInteraction, streamSummarize, streamStudyGuide, streamAskQuestion, explainSimpler, generateFlashcards, getSchedules, createSchedule, deleteSchedule, downloadPdf, generateMindMap, generateMultiQuiz, analyzeQuizPerformance, deleteDocument, getAnalytics, getSmartReadHighlights, getQuizCacheStatus } from "@/lib/api";
 import { MermaidChart } from "@/components/MermaidChart";
 import { gradeQuiz } from "@/lib/quizValidation";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -79,6 +79,7 @@ function DashboardPage() {
   const [numQuestions, setNumQuestions] = useState(5);
   const [timeLimit, setTimeLimit] = useState(5);
   const [quizData, setQuizData] = useState<any[] | null>(null);
+  const [quizCacheReady, setQuizCacheReady] = useState(false);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [userAnswers, setUserAnswers] = useState<Record<number, number | string>>({});
   const [quizFinished, setQuizFinished] = useState(false);
@@ -122,6 +123,16 @@ function DashboardPage() {
   const [readerCopied, setReaderCopied] = useState(false);
   const [activeHighlightIndex, setActiveHighlightIndex] = useState<number | null>(null);
 
+
+  // Check quiz cache status when selected document changes
+  useEffect(() => {
+    if (selectedDoc?.id) {
+      setQuizCacheReady(false);
+      getQuizCacheStatus(selectedDoc.id).then(s => setQuizCacheReady(s.ready && s.question_count >= 10));
+    } else {
+      setQuizCacheReady(false);
+    }
+  }, [selectedDoc?.id]);
 
   useEffect(() => {
     let timer: any;
@@ -332,6 +343,13 @@ function DashboardPage() {
           setQuizFinished(false);
           setTimeLeft(timeLimit * 60);
           setAiResult("quiz_active");
+          if (res.cache_hit) {
+            toast.success(`⚡ Quiz loaded instantly! ${parsed.length} questions ready.`);
+          } else {
+            toast.success(`Quiz generated! ${parsed.length} questions ready.`);
+          }
+          // Refresh cache status after generation
+          getQuizCacheStatus(selectedDoc.id).then(s => setQuizCacheReady(s.ready && s.question_count >= 10));
         } catch (e) {
           console.error(e);
           toast.error("Failed to parse quiz data.");

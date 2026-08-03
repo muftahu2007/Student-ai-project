@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import RegisterView, GoogleLoginView, DocumentListView, DocumentDetailView, SummarizeDocumentView, QuestionAnswerView, StudyGuideView, QuizView, MultiDocumentQuizView, ResetPasswordView, UserProfileView, GradeTheoryQuizView, SaveQuizResultView, QuizHistoryListView, ExtractAdmissionLetterView, StudentProfileView, InteractionHistoryListView, InteractionHistoryDetailView, ExplainSimplerView, SmartReadHighlightsView, GenerateFlashcardsView, StudyScheduleListView, StudyScheduleDetailView, GeneratePDFView, GenerateMindMapView, QuizPerformanceAnalysisView, AnalyticsView, AdminStatsView
+from .views import RegisterView, GoogleLoginView, DocumentListView, DocumentDetailView, SummarizeDocumentView, QuestionAnswerView, StudyGuideView, QuizView, MultiDocumentQuizView, ResetPasswordView, UserProfileView, GradeTheoryQuizView, SaveQuizResultView, QuizHistoryListView, ExtractAdmissionLetterView, StudentProfileView, InteractionHistoryListView, InteractionHistoryDetailView, ExplainSimplerView, SmartReadHighlightsView, GenerateFlashcardsView, StudyScheduleListView, StudyScheduleDetailView, GeneratePDFView, GenerateMindMapView, QuizPerformanceAnalysisView, AnalyticsView, AdminStatsView, QuizCacheStatusView
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
 urlpatterns = [
@@ -18,6 +18,7 @@ urlpatterns = [
     path('documents/<int:doc_id>/ask/', QuestionAnswerView.as_view(), name='document_ask'),
     path('documents/<int:doc_id>/study-guide/', StudyGuideView.as_view(), name='document_study_guide'),
     path('documents/<int:doc_id>/quiz/', QuizView.as_view(), name='document_quiz'),
+    path('documents/<int:doc_id>/quiz-cache-status/', QuizCacheStatusView.as_view(), name='document_quiz_cache_status'),
     path('documents/<int:doc_id>/flashcards/', GenerateFlashcardsView.as_view(), name='document_flashcards'),
     path('documents/<int:doc_id>/grade-theory/', GradeTheoryQuizView.as_view(), name='document_grade_theory'),
     path('quiz-history/', QuizHistoryListView.as_view(), name='quiz_history_list'),

@@ -72,3 +72,17 @@ class StudySchedule(models.Model):
 
     def __str__(self):
         return f"{self.user.username} - {self.exam_name}"
+
+
+class QuizCache(models.Model):
+    """Pre-generated quiz questions stored immediately after document upload."""
+    document = models.ForeignKey(Document, on_delete=models.CASCADE, related_name='quiz_cache')
+    quiz_type = models.CharField(max_length=50, default='objective')
+    questions = models.JSONField(default=list)
+    generated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ('document', 'quiz_type')
+
+    def __str__(self):
+        return f"QuizCache: {self.document.title} [{self.quiz_type}] ({len(self.questions)} questions)"
