@@ -73,4 +73,6 @@ backend/documents/*
 
 # Temp artifacts
 test_review.md
-
+AI_FINE_TUNING_ROADMAP.md
+LEARNING_ROADMAP.md
+PROJECT_LEARNING_GUIDE.md
