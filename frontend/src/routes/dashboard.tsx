@@ -1105,7 +1105,7 @@ function DashboardPage() {
                         <span className="text-xs text-muted-foreground">Questions</span>
                         <span className="text-xs font-bold">{numQuestions}</span>
                       </div>
-                      <input type="range" min="3" max="200" value={numQuestions} onChange={e => setNumQuestions(Number(e.target.value))} className="w-full accent-primary" />
+                      <input type="range" min="3" max="60" value={numQuestions} onChange={e => setNumQuestions(Number(e.target.value))} className="w-full accent-primary" />
                       
                       <div className="flex justify-between items-center px-1 pt-2">
                         <span className="text-xs text-muted-foreground">Time Limit (min)</span>

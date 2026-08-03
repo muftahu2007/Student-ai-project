@@ -659,7 +659,7 @@ class QuizView(APIView):
                 return Response({"error": "Could not extract text from this document. The PDF may be scanned or corrupted. Please try re-uploading it."}, status=400)
 
             quiz_type = request.data.get("quiz_type", "objective")
-            num_questions = max(1, min(int(request.data.get("num_questions", 5)), 100))
+            num_questions = max(1, min(int(request.data.get("num_questions", 5)), 60))
             force_regenerate = request.data.get("force_regenerate", False)
 
             # ── CACHE-FIRST: return instantly if we have pre-generated questions ──
@@ -1099,7 +1099,7 @@ class MultiDocumentQuizView(APIView):
 
         doc_ids = request.data.get("doc_ids", [])
         quiz_type = request.data.get("quiz_type", "objective")
-        num_questions = max(1, min(int(request.data.get("num_questions", 10)), 200))
+        num_questions = max(1, min(int(request.data.get("num_questions", 10)), 60))
 
         if not doc_ids or not isinstance(doc_ids, list):
             return Response({"error": "doc_ids must be a non-empty list."}, status=400)

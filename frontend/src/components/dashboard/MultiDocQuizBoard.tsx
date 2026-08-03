@@ -165,7 +165,7 @@ export function MultiDocQuizBoard({
                 <div className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Questions</div>
                 <div className="text-sm font-bold text-primary">{multiNumQuestions}</div>
               </div>
-              <input type="range" min="3" max="100" value={multiNumQuestions} onChange={e => setMultiNumQuestions(Number(e.target.value))} className="w-full accent-primary" />
+              <input type="range" min="3" max="60" value={multiNumQuestions} onChange={e => setMultiNumQuestions(Number(e.target.value))} className="w-full accent-primary" />
               <div className="flex justify-between text-[10px] text-muted-foreground"><span>3</span><span>100</span></div>
             </div>
             <div className="space-y-1.5">
