@@ -5,7 +5,7 @@
 ---
 
 > **The Golden Rule:** You cannot skip foundations. Every week builds on the last.
-> Stick to the order: **HTML → CSS → JavaScript → React → TypeScript → Django → AI → DevOps**
+> Stick to the order: **HTML → CSS → JavaScript → React → TypeScript → Django → AI Integration → Model Fine-Tuning → DevOps**
 
 ---
 
@@ -269,30 +269,72 @@
 
 ---
 
-## ⚫ LEVEL 7 — DevOps & Deployment (Weeks 25–28)
+## 🤖 LEVEL 7 — AI Model Fine-Tuning & Custom LLMs (Weeks 25–28)
 
-### Week 25: Git & GitHub Mastery
+### Week 25: PyTorch & Transformer Foundations
+- Tensors, Autograd (`loss.backward()`), `nn.Module`, and PyTorch training loops
+- GPU acceleration, CUDA setup, and VRAM memory management
+- Transformer architecture intuition (Self-Attention mechanism, Tokens, Context Windows)
+
+**Resource:** Andrej Karpathy's "Neural Networks: Zero to Hero" series on YouTube.
+
+**Mini Project:** Write a simple training loop in PyTorch to train a miniature character-level Transformer model.
+
+---
+
+### Week 26: Hugging Face Ecosystem & Dataset Formatting
+- Using `transformers`, `datasets`, and `tokenizers` libraries
+- Working with open-weights models (Llama 3.2, Qwen 2.5, Phi-3.5)
+- Structuring datasets for instruction fine-tuning (`JSONL` format with ChatML / Llama-3 templates)
+
+**Mini Project:** Load a pre-trained small LLM from Hugging Face and prepare a custom instruction dataset (e.g., BUK academic Q&A).
+
+---
+
+### Week 27: Fine-Tuning with LoRA & QLoRA
+- Full Fine-Tuning vs. Parameter-Efficient Fine-Tuning (PEFT)
+- Low-Rank Adaptation (LoRA) and 4-bit Quantized LoRA (QLoRA)
+- Accelerated fine-tuning with **Unsloth** and Hugging Face **TRL (`SFTTrainer`)**
+- Running fine-tuning scripts on free/low-cost cloud GPUs (Google Colab / RunPod)
+
+**Mini Project:** Fine-tune a 1.5B/3B open-weights model on your custom dataset using QLoRA in Google Colab.
+
+---
+
+### Week 28: Model Quantization, Ollama & Custom API Integration
+- Merging LoRA adapters back into base model weights
+- Quantizing models to GGUF format using `llama.cpp`
+- Serving your custom fine-tuned model locally using **Ollama** or **vLLM**
+- Connecting your custom fine-tuned model endpoint into your Django backend!
+
+**Mini Project:** Substitute external AI calls in your BUK Scholar AI app with your self-hosted fine-tuned model served through Ollama.
+
+---
+
+## ⚫ LEVEL 8 — DevOps & Deployment (Weeks 29–32)
+
+### Week 29: Git & GitHub Mastery
 - Branching and merging
 - Pull Requests
 - `.gitignore` — never committing secrets
 
 ---
 
-### Week 26: Environment Variables & Security
+### Week 30: Environment Variables & Security
 - `.env` files
 - Why API keys must NEVER be in your code
 - Production vs development configs
 
 ---
 
-### Week 27: Cloud Deployment
+### Week 31: Cloud Deployment
 - Deploying a React app on **Vercel**
 - Deploying a Django app on **Render**
 - Managed databases with **Supabase (PostgreSQL)**
 
 ---
 
-### Week 28: Monitoring & Maintenance
+### Week 32: Monitoring & Maintenance
 - Reading server logs
 - Setting up error alerts
 - Database backups
@@ -301,7 +343,7 @@
 
 ## 🏆 MASTER LEVEL — Ongoing
 
-Once you complete all 28 weeks, you will be able to build and deploy full-stack AI applications independently. At the master level, you focus on:
+Once you complete all 32 weeks, you will be able to build, fine-tune, and deploy full-stack AI applications independently. At the master level, you focus on:
 
 - **System Design:** How to architect large-scale applications
 - **Performance Optimization:** Database indexing, caching, lazy loading
@@ -334,6 +376,7 @@ Once you complete all 28 weeks, you will be able to build and deploy full-stack 
 | TypeScript | [totaltypescript.com](https://www.totaltypescript.com) |
 | Python & Django | Corey Schafer on YouTube |
 | AI / LLMs | Andrej Karpathy on YouTube |
+| LLM Fine-Tuning | [Unsloth AI Docs & Notebooks](https://unsloth.ai) / Hugging Face Docs |
 | Everything (short videos) | Fireship on YouTube |
 
 ---

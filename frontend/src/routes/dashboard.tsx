@@ -1838,7 +1838,7 @@ function DashboardPage() {
                   </div>
                   
                   <div 
-                    className="relative w-full aspect-[3/2] cursor-pointer group"
+                    className="relative w-full min-h-[280px] sm:min-h-[360px] aspect-[4/3] sm:aspect-[3/2] cursor-pointer group"
                     style={{ perspective: '1000px' }}
                     onClick={() => setIsFlipped(!isFlipped)}
                   >
@@ -1848,21 +1848,25 @@ function DashboardPage() {
                     >
                       {/* Front */}
                       <div 
-                        className="absolute inset-0 w-full h-full bg-card border border-border/50 rounded-3xl p-8 flex flex-col items-center justify-center text-center"
+                        className="absolute inset-0 w-full h-full bg-card border border-border/50 rounded-3xl p-4 sm:p-8 pt-12 pb-10 sm:pt-14 sm:pb-12 flex flex-col items-center justify-center text-center overflow-hidden"
                         style={{ backfaceVisibility: 'hidden' }}
                       >
-                        <div className="absolute top-6 left-6 text-[10px] font-bold uppercase tracking-widest text-primary/60 bg-primary/5 px-3 py-1 rounded-full border border-primary/20">Front</div>
-                        <h3 className="text-3xl md:text-4xl font-display font-bold leading-tight">{flashcardsData[flashcardIndex].front}</h3>
-                        <p className="absolute bottom-6 text-muted-foreground text-sm opacity-50 group-hover:opacity-100 transition-opacity">Click to reveal back</p>
+                        <div className="absolute top-4 left-4 sm:top-6 sm:left-6 text-[10px] font-bold uppercase tracking-widest text-primary/60 bg-primary/5 px-3 py-1 rounded-full border border-primary/20">Front</div>
+                        <div className="w-full flex-1 flex items-center justify-center overflow-y-auto px-1 sm:px-4 my-auto scrollbar-thin">
+                          <h3 className="text-lg sm:text-2xl md:text-3xl lg:text-4xl font-display font-bold leading-snug sm:leading-tight break-words max-w-full">{flashcardsData[flashcardIndex].front}</h3>
+                        </div>
+                        <p className="absolute bottom-3 sm:bottom-6 text-muted-foreground text-xs sm:text-sm opacity-60 group-hover:opacity-100 transition-opacity">Click to reveal back</p>
                       </div>
                       {/* Back */}
                       <div 
-                        className="absolute inset-0 w-full h-full bg-primary/5 border border-primary/20 rounded-3xl p-8 flex flex-col items-center justify-center text-center"
+                        className="absolute inset-0 w-full h-full bg-primary/5 border border-primary/20 rounded-3xl p-4 sm:p-8 pt-12 pb-10 sm:pt-14 sm:pb-12 flex flex-col items-center justify-center text-center overflow-hidden"
                         style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)' }}
                       >
-                        <div className="absolute top-6 left-6 text-[10px] font-bold uppercase tracking-widest text-primary/60 bg-primary/10 px-3 py-1 rounded-full border border-primary/30">Back</div>
-                        <p className="text-xl md:text-2xl font-medium leading-relaxed max-w-xl mx-auto">{flashcardsData[flashcardIndex].back}</p>
-                        <p className="absolute bottom-6 text-primary/50 text-sm opacity-50 group-hover:opacity-100 transition-opacity">Click to reveal front</p>
+                        <div className="absolute top-4 left-4 sm:top-6 sm:left-6 text-[10px] font-bold uppercase tracking-widest text-primary/60 bg-primary/10 px-3 py-1 rounded-full border border-primary/30">Back</div>
+                        <div className="w-full flex-1 flex items-center justify-center overflow-y-auto px-1 sm:px-4 my-auto scrollbar-thin">
+                          <p className="text-sm sm:text-lg md:text-xl lg:text-2xl font-medium leading-relaxed max-w-xl mx-auto break-words max-w-full">{flashcardsData[flashcardIndex].back}</p>
+                        </div>
+                        <p className="absolute bottom-3 sm:bottom-6 text-primary/50 text-xs sm:text-sm opacity-60 group-hover:opacity-100 transition-opacity">Click to reveal front</p>
                       </div>
                     </div>
                   </div>
