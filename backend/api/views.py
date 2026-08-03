@@ -57,11 +57,7 @@ def _generate(prompt, stream=False, system_prompt=None, history=None):
         "groq/llama-3.3-70b-versatile",                          # Primary: Groq 70B
         "gemini/gemini-2.0-flash",                                # Google Gemini 2.0 Flash
         "groq/llama-3.1-8b-instant",                              # Groq 8B Instant
-        "groq/mixtral-8x7b-32768",                                # Groq Mixtral
-        "groq/deepseek-r1-distill-llama-70b",                     # Groq DeepSeek R1 Distill
         "openrouter/openrouter/free",                             # OpenRouter auto-fallback (routes to any live free model)
-        "openrouter/google/gemma-4-31b-it:free",                  # OpenRouter Gemma 4 31B
-        "openrouter/openai/gpt-oss-20b:free",                     # OpenRouter GPT OSS 20B
     ]
 
     last_err = None
@@ -788,7 +784,7 @@ class QuizView(APIView):
             all_questions = []
             from concurrent.futures import ThreadPoolExecutor, as_completed
 
-            CHUNK_SIZE = 10
+            CHUNK_SIZE = 20
             batch_prompts = []
             temp_rem = num_questions
             batch_index = 0
@@ -807,14 +803,29 @@ class QuizView(APIView):
                     print(f"[QuizBatch Error]: {rate_err}", flush=True)
                     return []
 
-            with ThreadPoolExecutor(max_workers=min(len(batch_prompts), 4)) as executor:
+            with ThreadPoolExecutor(max_workers=min(len(batch_prompts), 2)) as executor:
                 futures = [executor.submit(_fetch_batch, p) for p in batch_prompts]
                 for future in as_completed(futures):
                     batch_res = future.result()
                     if batch_res:
                         all_questions.extend(batch_res)
 
-            print(f"[Parallel Quiz OK] Generated {len(all_questions)} questions across {len(batch_prompts)} parallel batches", flush=True)
+            # Top-up patch if LLM returned slightly fewer questions than target
+            missing_q = num_questions - len(all_questions)
+            if missing_q > 0 and missing_q <= 15:
+                print(f"[QuizPatch] Requesting top-up batch of {missing_q} questions (target: {num_questions}, got: {len(all_questions)})", flush=True)
+                try:
+                    patch_prompt = _get_prompt(missing_q, "Top-up Patch")
+                    patch_resp = _generate(patch_prompt)
+                    patch_questions = _extract_json_array(patch_resp.text)
+                    if patch_questions:
+                        all_questions.extend(patch_questions)
+                except Exception as patch_err:
+                    print(f"[QuizPatch Error]: {patch_err}", flush=True)
+
+            # Enforce exact max target length
+            all_questions = all_questions[:num_questions]
+            print(f"[Parallel Quiz OK] Delivered {len(all_questions)} questions across {len(batch_prompts)} batches", flush=True)
 
             stats, _ = UserStats.objects.get_or_create(user=request.user)
             stats.quizzes_completed += 1
@@ -1192,7 +1203,7 @@ class MultiDocumentQuizView(APIView):
                         )
 
                 remaining_for_doc = target_q_for_this_doc
-                CHUNK_SIZE = 10
+                CHUNK_SIZE = 20
                 
                 while remaining_for_doc > 0:
                     chunk_size = min(remaining_for_doc, CHUNK_SIZE)
@@ -1209,13 +1220,28 @@ class MultiDocumentQuizView(APIView):
                     return []
 
             from concurrent.futures import ThreadPoolExecutor, as_completed
-            with ThreadPoolExecutor(max_workers=min(len(batch_tasks), 4)) as executor:
+            with ThreadPoolExecutor(max_workers=min(len(batch_tasks), 2)) as executor:
                 futures = [executor.submit(_fetch_multi_batch, p) for p in batch_tasks]
                 for future in as_completed(futures):
                     batch_res = future.result()
                     if batch_res:
                         all_questions.extend(batch_res)
 
+            # Top-up patch if multi-doc quiz returned slightly fewer questions than target
+            missing_q = num_questions - len(all_questions)
+            if missing_q > 0 and missing_q <= 15:
+                print(f"[MultiQuizPatch] Top-up {missing_q} questions...", flush=True)
+                try:
+                    p_doc = valid_docs[0]
+                    patch_p = _get_prompt(missing_q, p_doc.title, p_doc.extracted_text[:12000])
+                    patch_r = _generate(patch_p)
+                    patch_q = _extract_json_array(patch_r.text)
+                    if patch_q:
+                        all_questions.extend(patch_q)
+                except Exception as ex:
+                    print(f"[MultiQuizPatch Error]: {ex}", flush=True)
+
+            all_questions = all_questions[:num_questions]
             print(f"[MultiQuiz Parallel OK] Total {len(all_questions)} questions generated across {len(batch_tasks)} parallel batches", flush=True)
                         
         except Exception as e:
