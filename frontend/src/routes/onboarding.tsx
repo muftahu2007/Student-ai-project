@@ -63,13 +63,49 @@ function OnboardingComponent() {
       }
 
       const data = await res.json();
-      setExtractedData({
+      const extracted: ExtractedData = {
         fullName: data.fullName || "",
         matricNumber: data.matricNumber || "",
         programme: data.programme || data.department || "",
         faculty: data.faculty || "",
         level: data.level || "",
-      });
+      };
+
+      // If valid BUK document with key details is verified, auto-create profile and proceed to dashboard
+      if (extracted.fullName && extracted.matricNumber && extracted.programme) {
+        setIsSubmitting(true);
+        const profileRes = await fetch(`${API_BASE_URL}/auth/profile/`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            full_name: extracted.fullName,
+            matric_number: extracted.matricNumber,
+            department: extracted.programme,
+            faculty: extracted.faculty,
+            level: extracted.level,
+          }),
+        });
+
+        if (!profileRes.ok) {
+          const errData = await profileRes.json().catch(() => ({}));
+          setExtractedData(extracted);
+          const detailMsg = errData.details
+            ? Object.entries(errData.details)
+                .map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(", ") : v}`)
+                .join(" | ")
+            : null;
+          throw new Error(errData.error || detailMsg || "Verification succeeded, but profile creation failed. Please review your details.");
+        }
+
+        // Direct navigation to dashboard
+        navigate({ to: "/dashboard" });
+        return;
+      }
+
+      setExtractedData(extracted);
     } catch (err: any) {
       setError(err.message || "An error occurred during extraction.");
     } finally {

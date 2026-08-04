@@ -1439,15 +1439,25 @@ Document Text:
                     reason = parsed_data.get('reason') or "This document does not appear to be an official BUK admission letter or student document."
                     return Response({"error": reason}, status=400)
 
-                # Ensure programme key is populated (fallback to department if AI returned department)
+                fullName = parsed_data.get('fullName', '').strip()
+                matricNumber = parsed_data.get('matricNumber', '').strip()
                 programme = parsed_data.get('programme') or parsed_data.get('department') or ''
+                faculty = parsed_data.get('faculty', '').strip()
+                level = parsed_data.get('level', '').strip()
+
+                # Strictly reject documents where critical student details were missing or returned as dummy placeholders
+                invalid_placeholders = ['not provided', 'n/a', 'none', 'null', 'unknown', '']
+                if matricNumber.lower() in invalid_placeholders or fullName.lower() in invalid_placeholders:
+                    return Response({
+                        "error": "Verification failed: Could not extract valid student details (such as Matriculation Number or Full Name) from this file. Please ensure you upload an official BUK admission letter or enter details manually."
+                    }, status=400)
 
                 return Response({
-                    "fullName": parsed_data.get('fullName', ''),
-                    "matricNumber": parsed_data.get('matricNumber', ''),
+                    "fullName": fullName,
+                    "matricNumber": matricNumber,
                     "programme": programme,
-                    "faculty": parsed_data.get('faculty', ''),
-                    "level": parsed_data.get('level', '')
+                    "faculty": faculty if faculty.lower() not in invalid_placeholders else '',
+                    "level": level if level.lower() not in invalid_placeholders else ''
                 })
             else:
                 return Response({"error": "Currently only PDF is supported for verification."}, status=400)
