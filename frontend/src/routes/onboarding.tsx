@@ -20,7 +20,7 @@ function OnboardingComponent() {
   type ExtractedData = {
     fullName: string;
     matricNumber: string;
-    department: string;
+    programme: string;
     faculty: string;
     level: string;
   };
@@ -66,7 +66,7 @@ function OnboardingComponent() {
       setExtractedData({
         fullName: data.fullName || "",
         matricNumber: data.matricNumber || "",
-        department: data.department || "",
+        programme: data.programme || data.department || "",
         faculty: data.faculty || "",
         level: data.level || "",
       });
@@ -95,7 +95,7 @@ function OnboardingComponent() {
         body: JSON.stringify({
           full_name: extractedData.fullName,
           matric_number: extractedData.matricNumber,
-          department: extractedData.department,
+          department: extractedData.programme,
           faculty: extractedData.faculty,
           level: extractedData.level,
         }),
@@ -135,7 +135,7 @@ function OnboardingComponent() {
           <CardDescription>
             {extractedData
               ? "Review and confirm your extracted information"
-              : "Upload your admission letter to verify your student status"}
+              : "Upload your BUK admission letter to verify your student status"}
           </CardDescription>
         </CardHeader>
         
@@ -194,7 +194,7 @@ function OnboardingComponent() {
               </Button>
               
               <div className="text-center text-xs text-muted-foreground">
-                Having trouble with extraction? <button onClick={() => setExtractedData({fullName: "", matricNumber: "", department: "", faculty: "", level: ""})} className="text-primary hover:underline">Enter manually</button>
+                Having trouble with extraction? <button onClick={() => setExtractedData({fullName: "", matricNumber: "", programme: "", faculty: "", level: ""})} className="text-primary hover:underline">Enter manually</button>
               </div>
             </div>
           ) : (
@@ -220,11 +220,12 @@ function OnboardingComponent() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="department">Department</Label>
+                  <Label htmlFor="programme">Programme</Label>
                   <Input
-                    id="department"
-                    value={extractedData.department}
-                    onChange={(e) => updateField("department", e.target.value)}
+                    id="programme"
+                    value={extractedData.programme}
+                    placeholder="e.g. B.Sc. Software Engineering"
+                    onChange={(e) => updateField("programme", e.target.value)}
                     required
                   />
                 </div>

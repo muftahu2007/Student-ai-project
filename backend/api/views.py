@@ -1395,7 +1395,33 @@ class ExtractAdmissionLetterView(APIView):
                 if not text.strip():
                     return Response({"error": "No readable text found in the PDF. Please ensure it is not a scanned image."}, status=400)
 
-                prompt = f"Extract the following information from this admission letter text: Full Name, Matric/Registration Number, Department, Faculty, and Level. Output ONLY a valid JSON object without markdown formatting. Use keys: fullName, matricNumber, department, faculty, level. Text: {text[:5000]}"
+                # Deterministic check for key BUK terms
+                lower_text = text.lower()
+                buk_keywords = ['bayero', 'buk', 'kano', 'admission', 'matric', 'registration', 'student']
+                has_buk_keyword = any(kw in lower_text for kw in buk_keywords)
+                
+                if not has_buk_keyword:
+                    return Response({
+                        "error": "The uploaded file does not appear to be an official Bayero University Kano (BUK) student document or admission letter."
+                    }, status=400)
+
+                prompt = f"""You are an official document verification system for Bayero University Kano (BUK).
+Examine the provided text from an uploaded document.
+1. Determine if this text belongs to an official BUK admission letter, student registration form, confirmation slip, or academic transcript.
+2. If it is NOT a valid BUK student document, return a JSON object with: {{"is_valid_buk_doc": false, "reason": "Clear error message explaining why"}}
+3. If it IS a valid BUK student document, return a JSON object with:
+   - "is_valid_buk_doc": true
+   - "fullName": "Full Name of student"
+   - "matricNumber": "Matriculation or Registration Number (e.g. CST/23/SWE/01052 or UG...)"
+   - "programme": "Degree Programme/Course of study (e.g. B.Sc. Software Engineering)"
+   - "faculty": "Faculty (e.g. Faculty of Computing)"
+   - "level": "Level (e.g. 100 Level)"
+
+Output ONLY valid JSON without markdown code fences.
+
+Document Text:
+{text[:5000]}"""
+
                 response = _generate(prompt)
 
                 raw_json = response.text.strip()
@@ -1408,9 +1434,23 @@ class ExtractAdmissionLetterView(APIView):
                 raw_json = raw_json.strip()
 
                 parsed_data = json.loads(raw_json)
-                return Response(parsed_data)
+
+                if not parsed_data.get('is_valid_buk_doc', True):
+                    reason = parsed_data.get('reason') or "This document does not appear to be an official BUK admission letter or student document."
+                    return Response({"error": reason}, status=400)
+
+                # Ensure programme key is populated (fallback to department if AI returned department)
+                programme = parsed_data.get('programme') or parsed_data.get('department') or ''
+
+                return Response({
+                    "fullName": parsed_data.get('fullName', ''),
+                    "matricNumber": parsed_data.get('matricNumber', ''),
+                    "programme": programme,
+                    "faculty": parsed_data.get('faculty', ''),
+                    "level": parsed_data.get('level', '')
+                })
             else:
-                return Response({"error": "Currently only PDF is supported for OCR."}, status=400)
+                return Response({"error": "Currently only PDF is supported for verification."}, status=400)
         except Exception as e:
             return Response({"error": str(e)}, status=500)
         finally:
