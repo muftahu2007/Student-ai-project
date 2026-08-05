@@ -547,10 +547,20 @@ function DashboardPage() {
   const handleAnalyzePerformance = async () => {
     try {
       setIsAnalyzingPerformance(true);
-      const score = Object.keys(multiUserAnswers).filter(k => multiUserAnswers[Number(k)] === multiQuizData![Number(k)].correct_answer).length;
-      const report = await analyzeQuizPerformance(multiQuizData!, multiUserAnswers, score, multiQuizData!.length);
+      if (!multiQuizData || multiQuizData.length === 0) {
+        toast.error("No quiz data available to analyze.");
+        return;
+      }
+      const score = Object.keys(multiUserAnswers).filter(k => {
+        const qIdx = Number(k);
+        return multiQuizData[qIdx] && multiUserAnswers[qIdx] === multiQuizData[qIdx].correct_answer;
+      }).length;
+
+      const report = await analyzeQuizPerformance(multiQuizData, multiUserAnswers, score, multiQuizData.length);
       setMultiPerformanceReport(report);
+      toast.success("AI Performance Report generated!");
     } catch (err: any) {
+      console.error("[Performance Analysis Error]", err);
       toast.error(err.message || "Failed to analyze performance.");
     } finally {
       setIsAnalyzingPerformance(false);

@@ -404,26 +404,30 @@ export function MultiDocQuizBoard({
                   if (multiQuizType === 'objective') {
                     const isCorrect = multiUserAnswers[i] === q.correct_answer;
                     return (
-                      <div key={i} className={`p-6 rounded-2xl border ${isCorrect ? 'border-green-500/30 bg-green-500/5' : 'border-red-500/30 bg-red-500/5'}`}>
-                        <div className="flex items-start justify-between gap-3 mb-3">
-                          <h4 className="font-medium flex-1">{i + 1}. {q.question}</h4>
-                          {q.source_doc && <span className="shrink-0 text-[10px] font-bold uppercase px-2 py-1 rounded-full bg-secondary text-muted-foreground border border-border/50">{q.source_doc}</span>}
+                      <div key={i} className={`p-4 sm:p-6 rounded-2xl border ${isCorrect ? 'border-green-500/30 bg-green-500/5' : 'border-red-500/30 bg-red-500/5'}`}>
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
+                          <h4 className="font-semibold text-base sm:text-lg flex-1 leading-snug break-words">{i + 1}. {q.question}</h4>
+                          {q.source_doc && (
+                            <span className="self-start sm:self-auto shrink-0 max-w-full truncate text-[10px] font-bold uppercase px-2.5 py-1 rounded-full bg-secondary text-muted-foreground border border-border/50">
+                              {q.source_doc}
+                            </span>
+                          )}
                         </div>
                         <div className="space-y-2 mb-3">
                           {q.options?.map((opt: string, optIdx: number) => (
-                            <div key={optIdx} className={`p-3 rounded-xl text-sm flex items-center gap-2 ${
+                            <div key={optIdx} className={`p-3 rounded-xl text-xs sm:text-sm flex items-start gap-2.5 ${
                               optIdx === q.correct_answer ? 'bg-green-500/20 text-green-700 dark:text-green-400 font-bold' :
                               optIdx === multiUserAnswers[i] ? 'bg-red-500/20 text-red-700 dark:text-red-400' : 'bg-background/50'
                             }`}>
-                              <div className="h-4 w-4 shrink-0 rounded-full border border-current flex items-center justify-center text-[10px]">
+                              <div className="h-5 w-5 shrink-0 rounded-full border border-current flex items-center justify-center text-[10px] mt-0.5">
                                 {optIdx === q.correct_answer ? '✓' : optIdx === multiUserAnswers[i] ? '✗' : ''}
                               </div>
-                              {opt}
+                              <span className="flex-1 leading-relaxed break-words min-w-0">{opt}</span>
                             </div>
                           ))}
                         </div>
                         {!isCorrect && q.explanation && (
-                          <div className="p-4 rounded-xl bg-background border border-border/50 text-sm">
+                          <div className="p-4 rounded-xl bg-background border border-border/50 text-xs sm:text-sm leading-relaxed break-words">
                             <span className="font-bold text-primary">Explanation: </span>{q.explanation}
                           </div>
                         )}
@@ -431,20 +435,24 @@ export function MultiDocQuizBoard({
                     );
                   }
                   return (
-                    <div key={i} className="p-6 rounded-2xl border border-border/50 bg-card">
-                      <div className="flex justify-between items-start gap-4 mb-4">
-                        <h4 className="font-medium flex-1">{i + 1}. {q.question}</h4>
-                        {q.source_doc && <span className="shrink-0 text-[10px] font-bold uppercase px-2 py-1 rounded-full bg-secondary text-muted-foreground border border-border/50">{q.source_doc}</span>}
+                    <div key={i} className="p-4 sm:p-6 rounded-2xl border border-border/50 bg-card">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
+                        <h4 className="font-semibold text-base sm:text-lg flex-1 leading-snug break-words">{i + 1}. {q.question}</h4>
+                        {q.source_doc && (
+                          <span className="self-start sm:self-auto shrink-0 max-w-full truncate text-[10px] font-bold uppercase px-2.5 py-1 rounded-full bg-secondary text-muted-foreground border border-border/50">
+                            {q.source_doc}
+                          </span>
+                        )}
                       </div>
                       <div className="mb-3">
                         <div className="text-xs font-bold uppercase text-muted-foreground mb-1">Your Answer</div>
-                        <div className="p-4 rounded-xl bg-secondary/30 text-sm border border-border/50 whitespace-pre-wrap">
+                        <div className="p-4 rounded-xl bg-secondary/30 text-xs sm:text-sm border border-border/50 whitespace-pre-wrap break-words">
                           {(multiUserAnswers[i] as string) || <span className="text-muted-foreground italic">No answer provided.</span>}
                         </div>
                       </div>
                       <div>
                         <div className="text-xs font-bold uppercase text-muted-foreground mb-1">Model Answer</div>
-                        <div className="p-4 rounded-xl bg-primary/5 text-sm border border-primary/20">{q.suggested_answer}</div>
+                        <div className="p-4 rounded-xl bg-primary/5 text-xs sm:text-sm border border-primary/20 break-words">{q.suggested_answer}</div>
                       </div>
                     </div>
                   );

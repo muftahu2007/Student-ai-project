@@ -1274,50 +1274,57 @@ class QuizPerformanceAnalysisView(APIView):
 
             performance_summary = []
             for i, q in enumerate(quiz_data):
-                is_correct = str(user_answers.get(str(i))) == str(q.get('correct_answer'))
+                ans = user_answers.get(str(i), user_answers.get(i))
+                is_correct = str(ans) == str(q.get('correct_answer')) if ans is not None else False
                 performance_summary.append({
-                    "topic": q.get('topic', 'General'),
+                    "topic": q.get('topic', 'General Concepts'),
                     "is_correct": is_correct
                 })
 
             prompt = (
-                f"You are an elite, highly encouraging academic AI coach. A student just finished a quiz scoring {score} out of {total}. "
-                f"Here is a summary of the topics they encountered and whether they got them right: {json.dumps(performance_summary)}\n\n"
-                f"Analyze this performance and provide a brief, personalized coaching report. "
-                f"Identify their strengths (what they know well) and their specific weaknesses (what they need to study). "
-                f"Provide an actionable 2-step study plan to help them improve.\n"
-                f"CRITICAL: Output ONLY a valid JSON object with EXACTLY three keys: 'strengths' (string), 'weaknesses' (string), and 'study_plan' (string). "
-                f"Do not include any markdown formatting like ```json. Your tone should be premium, supportive, and highly analytical."
+                f"You are an elite, highly encouraging academic AI coach for students at Bayero University Kano. "
+                f"A student just completed a quiz scoring {score} out of {total}.\n"
+                f"Topic Performance Summary: {json.dumps(performance_summary)}\n\n"
+                f"Analyze this performance and provide a concise, personalized coaching report.\n"
+                f"Return ONLY a JSON object with EXACTLY three keys:\n"
+                f"- 'strengths': String detailing the concepts they mastered clearly\n"
+                f"- 'weaknesses': String highlighting specific topics they missed or should review\n"
+                f"- 'study_plan': String providing an actionable 2-step study recommendation\n\n"
+                f"Do NOT include markdown formatting or commentary outside the JSON."
             )
 
-            # We use a smaller/faster model for quick review
-            import time
-            response = None
-            for attempt in range(3):
-                try:
-                    response = _generate(prompt)
-                    break
-                except Exception as err:
-                    err_str = str(err).lower()
-                    # Retry on rate limits OR network/DNS errors (like getaddrinfo)
-                    if attempt < 2 and ('429' in err_str or 'quota' in err_str or 'getaddrinfo' in err_str or 'connection' in err_str):
-                        time.sleep(3)
-                        continue
-                    raise err
-                    
-            raw_text = response.text.strip()
+            try:
+                response = _generate(prompt)
+                raw_text = response.text.strip()
+            except Exception as gen_err:
+                print(f"[Performance Analysis] AI generation failed, using structured fallback: {gen_err}")
+                return Response({
+                    "strengths": "Strong effort on the completed questions.",
+                    "weaknesses": "Review questions you missed to reinforce core concepts.",
+                    "study_plan": "1. Go through the explanations for incorrect answers.\n2. Re-read the relevant course slides or notes."
+                })
+
+            # Clean markdown code blocks
             raw_text = re.sub(r'^```(?:json)?\s*', '', raw_text, flags=re.MULTILINE)
-            raw_text = re.sub(r'```\s*$', '', raw_text, flags=re.MULTILINE)
-            raw_text = raw_text.strip()
+            raw_text = re.sub(r'```\s*$', '', raw_text, flags=re.MULTILINE).strip()
             
+            # Extract JSON block using regex if needed
+            json_match = re.search(r'\{.*\}', raw_text, re.DOTALL)
+            if json_match:
+                raw_text = json_match.group(0)
+
             try:
                 analysis = json.loads(raw_text)
-                return Response(analysis)
-            except json.JSONDecodeError:
                 return Response({
-                    "strengths": "You performed well on several topics.",
-                    "weaknesses": "There are some topics that need review.",
-                    "study_plan": "1. Review the incorrect questions.\n2. Re-read the source documents for those topics."
+                    "strengths": str(analysis.get("strengths", "Solid understanding across studied topics.")),
+                    "weaknesses": str(analysis.get("weaknesses", "Targeted review needed on incorrect topics.")),
+                    "study_plan": str(analysis.get("study_plan", "1. Revisit missed concepts in lecture notes.\n2. Retake this quiz to verify retention."))
+                })
+            except Exception:
+                return Response({
+                    "strengths": "Solid attempt on this document quiz.",
+                    "weaknesses": "Double-check key concepts for any incorrect questions.",
+                    "study_plan": "1. Review incorrect options and read explanations.\n2. Retake the quiz after reviewing."
                 })
 
         except Exception as e:
