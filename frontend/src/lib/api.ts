@@ -192,7 +192,10 @@ export async function generateQuiz(docId: number, quizType: string = 'objective'
     method: 'POST',
     body: JSON.stringify({ quiz_type: quizType, num_questions: numQuestions, force_regenerate: forceRegenerate }),
   });
-  if (!res.ok) throw new Error('Failed to generate quiz');
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.error || 'Failed to generate quiz. Please try again.');
+  }
   return res.json();
 }
 

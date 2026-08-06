@@ -47,15 +47,15 @@ export function MyDocuments({
                 <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary shrink-0">
                   <FileText className="h-5 w-5" />
                 </div>
-                <div className="flex-1 pr-6">
-                  <h4 className="font-semibold line-clamp-2" title={doc.title}>{doc.title}</h4>
+                <div className="flex-1 min-w-0 pr-8">
+                  <h4 className="font-semibold text-sm leading-snug break-words line-clamp-2" title={doc.title}>{doc.title}</h4>
                   <p className="text-xs text-muted-foreground mt-1">{new Date(doc.uploaded_at).toLocaleDateString()}</p>
                 </div>
               </div>
               <motion.button
                 whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}
                 onClick={(e: React.MouseEvent) => handleDeleteDocument(doc.id, e)}
-                className="absolute top-4 right-4 p-2 rounded-full hover:bg-red-500/10 text-muted-foreground/30 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"
+                className="absolute top-3 right-3 p-2 rounded-full hover:bg-red-500/10 text-muted-foreground/60 hover:text-red-500 transition-colors sm:opacity-0 sm:group-hover:opacity-100"
                 title="Delete Document"
               >
                 <Trash2 className="h-4 w-4" />

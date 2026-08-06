@@ -134,18 +134,22 @@ function DashboardPage() {
     }
   }, [selectedDoc?.id]);
 
+  // Single-doc quiz countdown — runs once when quiz starts, not every second
   useEffect(() => {
-    let timer: any;
-    if (aiMode === 'quiz' && quizData && !quizFinished && timeLeft !== null && timeLeft > 0) {
-      timer = setInterval(() => {
-        setTimeLeft(prev => (prev !== null ? prev - 1 : null));
-      }, 1000);
-    } else if (timeLeft === 0 && !quizFinished) {
+    if (aiMode !== 'quiz' || !quizData || quizFinished || timeLeft === null || timeLeft <= 0) return;
+    const timer = setInterval(() => {
+      setTimeLeft(prev => (prev !== null ? prev - 1 : null));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [aiMode, quizData, quizFinished]); // intentionally excludes timeLeft
+
+  // Detect when single-doc quiz time runs out
+  useEffect(() => {
+    if (timeLeft === 0 && !quizFinished && quizData) {
       setQuizFinished(true);
       toast.info("Time's up!");
     }
-    return () => clearInterval(timer);
-  }, [timeLeft, aiMode, quizData, quizFinished]);
+  }, [timeLeft]);
 
   // Auto-save quiz result when quiz is finished
   useEffect(() => {
@@ -297,16 +301,29 @@ function DashboardPage() {
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      try {
-        toast.loading("Uploading document...", { id: "upload" });
-        await uploadDocument(file);
-        const docsData = await getDocuments();
-        setDocuments(docsData);
-        toast.success("Document uploaded successfully!", { id: "upload" });
-      } catch (err) {
-        console.error("Failed to upload document", err);
-        toast.error("Failed to upload document", { id: "upload" });
+    if (!file) return;
+    // Reset input so same file can be re-uploaded
+    e.target.value = '';
+    const MAX_SIZE_MB = 20;
+    if (file.size > MAX_SIZE_MB * 1024 * 1024) {
+      toast.error(`File too large. Maximum size is ${MAX_SIZE_MB}MB.`);
+      return;
+    }
+    try {
+      toast.loading("Uploading document...", { id: "upload" });
+      await uploadDocument(file);
+      const docsData = await getDocuments();
+      setDocuments(docsData);
+      toast.success("Document uploaded! AI is processing it in the background.", { id: "upload" });
+    } catch (err: any) {
+      console.error("Failed to upload document", err);
+      const msg = err.message || "";
+      if (msg.includes('413') || msg.toLowerCase().includes('too large')) {
+        toast.error("File is too large for the server. Try a smaller file.", { id: "upload" });
+      } else if (msg.includes('401') || msg.includes('403')) {
+        toast.error("Session expired. Please log in again.", { id: "upload" });
+      } else {
+        toast.error("Upload failed. Check your connection and try again.", { id: "upload" });
       }
     }
   };
@@ -464,19 +481,22 @@ function DashboardPage() {
   const handleDeleteDocument = async (id: number, e: React.MouseEvent) => {
     e.stopPropagation();
     if (!confirm("Are you sure you want to delete this document? This action cannot be undone.")) return;
+    // Optimistic update — remove instantly from UI
+    const prevDocs = documents;
+    setDocuments(prev => prev.filter((d: any) => d.id !== id));
+    if (selectedDoc && selectedDoc.id === id) {
+      setSelectedDoc(null);
+      setAiMode(null);
+      setAiResult("");
+    }
     try {
       await deleteDocument(id);
-      toast.success("Document deleted successfully.");
-      // Refresh documents
-      const docs = await getDocuments();
-      setDocuments(docs);
-      // Optional: If selectedDoc is the deleted one, clear it
-      if (selectedDoc && selectedDoc.id === id) {
-        setSelectedDoc(null);
-        setAiMode(null);
-        setAiResult("");
-      }
+      toast.success("Document deleted.");
+      // Silent background refresh to sync any edge cases
+      getDocuments().then(setDocuments).catch(() => {});
     } catch (err: any) {
+      // Rollback on failure
+      setDocuments(prevDocs);
       toast.error(err.message || "Failed to delete document.");
     }
   };
@@ -492,19 +512,22 @@ function DashboardPage() {
     }
   };
 
-  // Multi-Quiz timer
+  // Multi-Quiz countdown — runs once when quiz starts, not every second
   useEffect(() => {
-    let timer: any;
-    if (activeTab === 'quizboard' && multiQuizData && !multiQuizFinished && multiTimeLeft !== null && multiTimeLeft > 0) {
-      timer = setInterval(() => {
-        setMultiTimeLeft(prev => (prev !== null ? prev - 1 : null));
-      }, 1000);
-    } else if (multiTimeLeft === 0 && !multiQuizFinished && multiQuizData) {
+    if (activeTab !== 'quizboard' || !multiQuizData || multiQuizFinished || multiTimeLeft === null || multiTimeLeft <= 0) return;
+    const timer = setInterval(() => {
+      setMultiTimeLeft(prev => (prev !== null ? prev - 1 : null));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [activeTab, multiQuizData, multiQuizFinished]); // intentionally excludes multiTimeLeft
+
+  // Detect when multi-quiz time runs out
+  useEffect(() => {
+    if (multiTimeLeft === 0 && !multiQuizFinished && multiQuizData) {
       setMultiQuizFinished(true);
       toast.info("Time's up!");
     }
-    return () => clearInterval(timer);
-  }, [multiTimeLeft, activeTab, multiQuizData, multiQuizFinished]);
+  }, [multiTimeLeft]);
 
   const handleMultiQuizGenerate = async () => {
     if (selectedDocIds.length === 0) {
