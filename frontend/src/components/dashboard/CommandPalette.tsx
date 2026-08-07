@@ -1,4 +1,5 @@
 import { AnimatePresence, motion } from "framer-motion";
+import { toast } from "sonner";
 import {
   Search, ChevronRight, LayoutDashboard, FileText, ListChecks,
   Calendar, Clock, Upload, MessageSquare, Zap, Sparkles, LogOut,
@@ -27,11 +28,6 @@ export function CommandPalette({
   setAiMode,
   handleLogout,
 }: CommandPaletteProps) {
-  const { toast } = (() => {
-    // lazy import workaround — toast is available globally via sonner
-    const { toast } = require("sonner");
-    return { toast };
-  })();
 
   const cmdActions = [
     { label: "Overview", icon: LayoutDashboard, action: () => setActiveTab("overview"), group: "Navigate" },
