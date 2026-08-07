@@ -235,13 +235,10 @@ function DashboardPage() {
   useEffect(() => {
     async function loadData() {
       try {
-        const [profileData, docsData, historyData, interactionData, schedulesData, analyticsRes] = await Promise.all([
+        // Phase 1: Critical path — load user profile & documents fast to unblock UI
+        const [profileData, docsData] = await Promise.all([
           getUserProfile(),
           getDocuments(),
-          getQuizHistory().catch(() => []),
-          getInteractionHistory().catch(() => []),
-          getSchedules().catch(() => []),
-          getAnalytics().catch(() => null)
         ]);
 
         if (!profileData.profile) {
@@ -251,15 +248,24 @@ function DashboardPage() {
 
         setUser(profileData);
         setDocuments(docsData);
-        setQuizHistory(historyData);
-        setInteractionHistory(interactionData);
-        setSchedules(schedulesData);
-        if (analyticsRes) setAnalyticsData(analyticsRes);
+        setLoading(false); // Unblock UI immediately!
+
+        // Phase 2: Non-blocking background fetch for secondary data
+        Promise.all([
+          getQuizHistory().catch(() => []),
+          getInteractionHistory().catch(() => []),
+          getSchedules().catch(() => []),
+          getAnalytics().catch(() => null),
+        ]).then(([historyData, interactionData, schedulesData, analyticsRes]) => {
+          setQuizHistory(historyData);
+          setInteractionHistory(interactionData);
+          setSchedules(schedulesData);
+          if (analyticsRes) setAnalyticsData(analyticsRes);
+        });
+
       } catch (err) {
         console.error(err);
         navigate({ to: "/login" });
-      } finally {
-        setLoading(false);
       }
     }
     loadData();
