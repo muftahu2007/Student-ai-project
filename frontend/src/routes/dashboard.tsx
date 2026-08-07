@@ -452,12 +452,15 @@ function DashboardPage() {
   const handleDeleteInteraction = async (id: number, e: React.MouseEvent) => {
     e.stopPropagation();
     if (!confirm("Are you sure you want to delete this activity?")) return;
+    const prevHistory = interactionHistory;
+    // Optimistic UI update: Remove instantly (< 1ms)
+    setInteractionHistory(prev => prev.filter(h => h.id !== id));
+    toast.success("Activity deleted.");
+
     try {
       await deleteInteraction(id);
-      toast.success("Activity deleted successfully.");
-      const histData = await getInteractionHistory();
-      setInteractionHistory(histData);
     } catch (err: any) {
+      setInteractionHistory(prevHistory); // Rollback on failure
       toast.error(err.message || "Failed to delete activity.");
     }
   };
@@ -466,29 +469,34 @@ function DashboardPage() {
     e.stopPropagation();
     if (!confirm("Are you sure you want to delete this document? This action cannot be undone.")) return;
     const prevDocs = documents;
+    // Optimistic UI update: Remove instantly (< 1ms)
     setDocuments(prev => prev.filter((d: any) => d.id !== id));
     if (selectedDoc && selectedDoc.id === id) {
       setSelectedDoc(null);
       setAiMode(null);
       setAiResult("");
     }
+    toast.success("Document deleted.");
+
     try {
       await deleteDocument(id);
-      toast.success("Document deleted.");
-      getDocuments().then(setDocuments).catch(() => {});
     } catch (err: any) {
-      setDocuments(prevDocs);
+      setDocuments(prevDocs); // Rollback on failure
       toast.error(err.message || "Failed to delete document.");
     }
   };
 
   const handleDeleteSchedule = async (id: number) => {
     if (!confirm("Delete this study plan? This cannot be undone.")) return;
+    const prevSchedules = schedules;
+    // Optimistic UI update: Remove instantly (< 1ms)
+    setSchedules(prev => prev.filter((s: any) => s.id !== id));
+    toast.success("Study plan deleted.");
+
     try {
       await deleteSchedule(id);
-      toast.success("Study plan deleted.");
-      setSchedules(prev => prev.filter((s: any) => s.id !== id));
     } catch (err: any) {
+      setSchedules(prevSchedules); // Rollback on failure
       toast.error(err.message || "Failed to delete schedule.");
     }
   };

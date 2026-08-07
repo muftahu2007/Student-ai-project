@@ -1,9 +1,11 @@
+import { lazy, Suspense } from "react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { MermaidChart } from "@/components/MermaidChart";
 import { toast } from "sonner";
 import { downloadPdf } from "@/lib/api";
+
+const MermaidChart = lazy(() => import("@/components/MermaidChart").then(m => ({ default: m.MermaidChart })));
 import {
   Sparkles, Menu, X, BookOpen, MessageSquare, Clock, FlipHorizontal, Globe,
   ListChecks, Brain, Target, TrendingDown, CheckCircle2, XCircle, Loader2,
@@ -1057,7 +1059,9 @@ export function AIWorkspaceModal({
                     {aiResult === "..............................." ? (
                       <div className="h-full w-full flex items-center justify-center text-primary animate-pulse text-2xl tracking-widest">{aiResult}</div>
                     ) : (
-                      <MermaidChart chart={aiResult} />
+                      <Suspense fallback={<div className="h-full w-full flex items-center justify-center text-primary animate-pulse text-sm font-semibold">Loading MindMap Engine...</div>}>
+                        <MermaidChart chart={aiResult} />
+                      </Suspense>
                     )}
                   </div>
                 </div>
